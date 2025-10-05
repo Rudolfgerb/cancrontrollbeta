@@ -1,8 +1,15 @@
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SprayCan, Map, Users, Trophy, Palette, Zap } from "lucide-react";
 
 const Index = () => {
+  const navigate = useNavigate();
+
+  const handleStartGame = () => {
+    navigate('/game');
+  };
+
   const features = [
     {
       icon: SprayCan,
@@ -75,7 +82,7 @@ const Index = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-            <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg px-8 py-6 shadow-neon">
+            <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg px-8 py-6 shadow-neon" onClick={handleStartGame}>
               Start Painting
             </Button>
             <Button size="lg" variant="outline" className="border-2 border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground font-bold text-lg px-8 py-6">
@@ -178,7 +185,7 @@ const Index = () => {
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Die Stadt wartet auf deine Kunst. Werde Teil der Crew und zeig der Welt deinen Style.
           </p>
-          <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xl px-12 py-7 shadow-neon">
+          <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xl px-12 py-7 shadow-neon" onClick={handleStartGame}>
             Get Started Now
           </Button>
         </div>
