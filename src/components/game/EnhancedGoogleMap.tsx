@@ -2,9 +2,17 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { GoogleMap, StreetViewPanorama, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Star, DollarSign, Shield, Camera, MapPin, Navigation, Crosshair } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Star, DollarSign, Shield, Camera, MapPin, Navigation, Crosshair, Crop, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useHaptics } from '@/lib/haptics';
+import html2canvas from 'html2canvas';
+import Cropper from 'react-easy-crop';
+import { Point, Area } from 'react-easy-crop/types';
 
 interface CapturedSpot {
   id: string;
@@ -35,6 +43,9 @@ const streetViewStyle = {
   height: '100%',
 };
 
+// Define libraries as constant to prevent reload warnings
+const libraries: ('places' | 'geometry')[] = ['places', 'geometry'];
+
 export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
   onSpotCapture,
   onSpotSelect,
@@ -43,16 +54,25 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [streetView, setStreetView] = useState<google.maps.StreetViewPanorama | null>(null);
   const [currentPosition, setCurrentPosition] = useState({ lat: 52.520008, lng: 13.404954 }); // Berlin
-  const [streetViewPosition, setStreetViewPosition] = useState<google.maps.LatLng | null>(null);
+  const [streetViewPosition, setStreetViewPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [isStreetViewMode, setIsStreetViewMode] = useState(false);
   const [selectedSpot, setSelectedSpot] = useState<CapturedSpot | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [showCropDialog, setShowCropDialog] = useState(false);
+  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [spotName, setSpotName] = useState('');
+  const [spotDescription, setSpotDescription] = useState('');
+  const [riskLevel, setRiskLevel] = useState(5);
   const streetViewRef = useRef<google.maps.StreetViewPanorama | null>(null);
+  const streetViewContainerRef = useRef<HTMLDivElement | null>(null);
   const { light, success } = useHaptics();
 
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
-    libraries: ['places', 'geometry'],
+    libraries,
   });
 
   // Get user's location
@@ -84,17 +104,75 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
     setMap(null);
   }, []);
 
-  const onStreetViewLoad = useCallback((panorama: google.maps.StreetViewPanorama) => {
-    setStreetView(panorama);
-    streetViewRef.current = panorama;
-  }, []);
+  // Initialize Street View manually when container is ready
+  useEffect(() => {
+    if (isStreetViewMode && streetViewPosition && streetViewContainerRef.current && isLoaded && !streetViewRef.current) {
+      console.log('Initializing Street View manually');
+
+      try {
+        const panorama = new google.maps.StreetViewPanorama(
+          streetViewContainerRef.current,
+          {
+            position: streetViewPosition,
+            addressControl: true,
+            fullscreenControl: true,
+            motionTracking: false,
+            motionTrackingControl: false,
+            showRoadLabels: true,
+            linksControl: true,
+            panControl: true,
+            zoomControl: true,
+            pov: {
+              heading: 0,
+              pitch: 0,
+            },
+          }
+        );
+
+        streetViewRef.current = panorama;
+        setStreetView(panorama);
+        console.log('Street View initialized successfully');
+      } catch (error) {
+        console.error('Error initializing Street View:', error);
+        toast.error('Fehler beim Laden von Street View');
+        setIsStreetViewMode(false);
+      }
+    }
+  }, [isStreetViewMode, streetViewPosition, isLoaded]);
+
+  // Cleanup Street View on unmount or mode change
+  useEffect(() => {
+    return () => {
+      if (streetViewRef.current) {
+        streetViewRef.current = null;
+        setStreetView(null);
+      }
+    };
+  }, [isStreetViewMode]);
 
   const handleOpenStreetView = (position: { lat: number; lng: number }) => {
     light();
-    const latLng = new google.maps.LatLng(position.lat, position.lng);
-    setStreetViewPosition(latLng);
-    setIsStreetViewMode(true);
-    toast.success('Street View geöffnet');
+    console.log('Opening Street View at:', position);
+
+    // Check if Street View is available at this location
+    const streetViewService = new google.maps.StreetViewService();
+    streetViewService.getPanorama(
+      { location: position, radius: 50 },
+      (data, status) => {
+        if (status === google.maps.StreetViewStatus.OK && data && data.location) {
+          console.log('Street View available at:', data.location.latLng?.toJSON());
+          const pos = data.location.latLng;
+          if (pos) {
+            setStreetViewPosition({ lat: pos.lat(), lng: pos.lng() });
+            setIsStreetViewMode(true);
+            toast.success('Street View geöffnet');
+          }
+        } else {
+          console.error('Street View not available:', status);
+          toast.error('Kein Street View an dieser Position verfügbar');
+        }
+      }
+    );
   };
 
   const handleCloseStreetView = () => {
@@ -105,8 +183,8 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
   };
 
   const captureStreetView = async () => {
-    if (!streetView || !streetViewPosition) {
-      toast.error('Kein Street View Bild verfügbar');
+    if (!streetViewContainerRef.current) {
+      toast.error('Street View nicht verfügbar');
       return;
     }
 
@@ -114,73 +192,104 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
     light();
 
     try {
+      // Use html2canvas to capture the Street View
+      const canvas = await html2canvas(streetViewContainerRef.current, {
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#1a1a1a',
+        scale: 1,
+      });
+
+      const imageData = canvas.toDataURL('image/png');
+      setCapturedImage(imageData);
+      setShowCropDialog(true);
+      toast.success('Screenshot erstellt! Jetzt zuschneiden');
+    } catch (error) {
+      console.error('Screenshot error:', error);
+      toast.error('Fehler beim Screenshot');
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
+  const onCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const createCroppedImage = async () => {
+    if (!capturedImage || !croppedAreaPixels || !streetView) {
+      return;
+    }
+
+    try {
+      const image = new Image();
+      image.src = capturedImage;
+      await new Promise((resolve) => { image.onload = resolve; });
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) return;
+
+      canvas.width = croppedAreaPixels.width;
+      canvas.height = croppedAreaPixels.height;
+
+      ctx.drawImage(
+        image,
+        croppedAreaPixels.x,
+        croppedAreaPixels.y,
+        croppedAreaPixels.width,
+        croppedAreaPixels.height,
+        0,
+        0,
+        croppedAreaPixels.width,
+        croppedAreaPixels.height
+      );
+
+      const croppedImageData = canvas.toDataURL('image/png');
+
       const pov = streetView.getPov();
       const position = streetView.getPosition();
 
       if (!position) {
-        toast.error('Position konnte nicht ermittelt werden');
-        setIsCapturing(false);
+        toast.error('Position nicht verfügbar');
         return;
       }
 
-      // Create a canvas to capture the Street View
-      const panoramaDiv = document.querySelector('.gm-style-pbc') as HTMLElement;
-      if (!panoramaDiv) {
-        toast.error('Street View Inhalt nicht gefunden');
-        setIsCapturing(false);
-        return;
-      }
+      // Map risk level (1-10) to difficulty
+      const difficultyMap: CapturedSpot['difficulty'][] = ['easy', 'easy', 'easy', 'medium', 'medium', 'medium', 'hard', 'hard', 'extreme', 'extreme'];
+      const difficulty = difficultyMap[Math.min(riskLevel - 1, 9)];
 
-      // Use html2canvas alternative - direct image capture from Street View tiles
-      const canvas = document.createElement('canvas');
-      canvas.width = 800;
-      canvas.height = 600;
-      const ctx = canvas.getContext('2d');
-
-      if (!ctx) {
-        toast.error('Canvas konnte nicht erstellt werden');
-        setIsCapturing(false);
-        return;
-      }
-
-      // Fill with a placeholder background
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Get image data
-      const imageData = canvas.toDataURL('image/png');
-
-      // Determine difficulty based on location characteristics
-      const difficulty: CapturedSpot['difficulty'] = ['easy', 'medium', 'hard', 'extreme'][
-        Math.floor(Math.random() * 4)
-      ] as CapturedSpot['difficulty'];
-
-      // Create spot name based on coordinates
-      const spotName = `Spot ${position.lat().toFixed(4)}, ${position.lng().toFixed(4)}`;
+      const finalSpotName = spotName.trim() || `Spot ${position.lat().toFixed(4)}, ${position.lng().toFixed(4)}`;
 
       const capturedSpot: CapturedSpot = {
         id: `spot-${Date.now()}`,
-        name: spotName,
+        name: finalSpotName,
         position: {
           lat: position.lat(),
           lng: position.lng(),
         },
         heading: pov.heading,
         pitch: pov.pitch,
-        imageData,
+        imageData: croppedImageData,
         difficulty,
         timestamp: Date.now(),
       };
 
       onSpotCapture(capturedSpot);
       success();
-      toast.success(`Spot "${spotName}" erfasst!`);
+      toast.success(`Spot "${finalSpotName}" erfasst!`);
+
+      // Reset states
+      setShowCropDialog(false);
+      setCapturedImage(null);
+      setSpotName('');
+      setSpotDescription('');
+      setRiskLevel(5);
       handleCloseStreetView();
     } catch (error) {
-      console.error('Capture error:', error);
-      toast.error('Fehler beim Erfassen des Spots');
-    } finally {
-      setIsCapturing(false);
+      console.error('Crop error:', error);
+      toast.error('Fehler beim Zuschneiden');
     }
   };
 
@@ -405,27 +514,146 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
       )}
 
       {/* Street View */}
-      {isStreetViewMode && streetViewPosition && (
-        <div className="w-full h-full">
-          <StreetViewPanorama
-            position={streetViewPosition}
-            onLoad={onStreetViewLoad}
-            options={{
-              addressControl: false,
-              fullscreenControl: false,
-              motionTracking: false,
-              motionTrackingControl: false,
-              showRoadLabels: true,
-              visible: true,
-              pov: {
-                heading: 0,
-                pitch: 0,
-              },
-              zoom: 1,
-            }}
-          />
-        </div>
+      {isStreetViewMode && streetViewPosition && isLoaded && (
+        <div
+          ref={streetViewContainerRef}
+          style={{
+            width: '100%',
+            height: '100%',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
+        />
       )}
+
+      {/* Crop Dialog */}
+      <Dialog open={showCropDialog} onOpenChange={setShowCropDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase flex items-center gap-2">
+              <Crop className="w-6 h-6 text-primary" />
+              Spot Zuschneiden & Konfigurieren
+            </DialogTitle>
+            <DialogDescription>
+              Schneide den Screenshot zu und konfiguriere den Spot
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Crop Area */}
+            {capturedImage && (
+              <div className="relative w-full h-[400px] bg-black rounded-lg overflow-hidden">
+                <Cropper
+                  image={capturedImage}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={4 / 3}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                />
+              </div>
+            )}
+
+            {/* Zoom Control */}
+            <div className="space-y-2">
+              <Label className="text-sm font-bold uppercase">Zoom</Label>
+              <Slider
+                value={[zoom]}
+                onValueChange={([value]) => setZoom(value)}
+                min={1}
+                max={3}
+                step={0.1}
+                className="w-full"
+              />
+            </div>
+
+            {/* Spot Name */}
+            <div className="space-y-2">
+              <Label htmlFor="spotName" className="text-sm font-bold uppercase">
+                Spot Name *
+              </Label>
+              <Input
+                id="spotName"
+                value={spotName}
+                onChange={(e) => setSpotName(e.target.value)}
+                placeholder="z.B. East Side Gallery, Hauptbahnhof..."
+                className="font-mono"
+              />
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="spotDescription" className="text-sm font-bold uppercase">
+                Beschreibung (Optional)
+              </Label>
+              <Textarea
+                id="spotDescription"
+                value={spotDescription}
+                onChange={(e) => setSpotDescription(e.target.value)}
+                placeholder="Besonderheiten, Tipps, Zugänglichkeit..."
+                rows={3}
+              />
+            </div>
+
+            {/* Risk Level */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-bold uppercase">Risiko Level</Label>
+                <div className="text-2xl font-black">
+                  <span className={
+                    riskLevel <= 3 ? 'text-neon-lime' :
+                    riskLevel <= 6 ? 'text-neon-cyan' :
+                    riskLevel <= 8 ? 'text-neon-orange' :
+                    'text-destructive'
+                  }>
+                    {riskLevel}/10
+                  </span>
+                </div>
+              </div>
+              <Slider
+                value={[riskLevel]}
+                onValueChange={([value]) => setRiskLevel(value)}
+                min={1}
+                max={10}
+                step={1}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>🟢 Easy</span>
+                <span>🟡 Medium</span>
+                <span>🟠 Hard</span>
+                <span>🔴 Extreme</span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCropDialog(false);
+                setCapturedImage(null);
+              }}
+              className="gap-2"
+            >
+              <X className="w-4 h-4" />
+              Abbrechen
+            </Button>
+            <Button
+              onClick={createCroppedImage}
+              disabled={!spotName.trim()}
+              className="gap-2 bg-primary hover:bg-primary/90"
+            >
+              <Check className="w-4 h-4" />
+              Spot erstellen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

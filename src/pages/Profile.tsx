@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
 import {
   User,
   Star,
@@ -18,9 +19,15 @@ import {
   Package,
   Palette,
   Shield,
-  Zap
+  Zap,
+  Search,
+  Filter
 } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
+import { useAchievements } from '@/contexts/AchievementContext';
+import { AchievementCategory, AchievementRarity } from '@/data/achievements';
+import { cn } from '@/lib/utils';
 
 interface PaintingTool {
   id: string;
@@ -36,18 +43,13 @@ interface PaintingTool {
   };
 }
 
-interface Achievement {
-  id: string;
-  name: string;
-  description: string;
-  unlocked: boolean;
-  unlockedDate?: string;
-  rarity: 'common' | 'rare' | 'epic' | 'legendary';
-}
-
 const Profile: React.FC = () => {
   const { gameState } = useGame();
+  const { getAllAchievements, achievementStats } = useAchievements();
   const [activeTab, setActiveTab] = useState('stats');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<AchievementCategory | 'all'>('all');
+  const [selectedRarity, setSelectedRarity] = useState<AchievementRarity | 'all'>('all');
 
   // Mock player data - würde später vom Backend kommen
   const playerData = {
@@ -102,53 +104,27 @@ const Profile: React.FC = () => {
     },
   ];
 
-  const achievements: Achievement[] = [
-    {
-      id: '1',
-      name: 'First Tag',
-      description: 'Bemale deinen ersten Spot',
-      unlocked: true,
-      unlockedDate: '2025-01-15',
-      rarity: 'common'
-    },
-    {
-      id: '2',
-      name: 'Stealth Master',
-      description: 'Bemale 10 Spots ohne erwischt zu werden',
-      unlocked: true,
-      unlockedDate: '2025-02-01',
-      rarity: 'rare'
-    },
-    {
-      id: '3',
-      name: 'Night Owl',
-      description: 'Bemale 5 Spots zwischen 2-4 Uhr nachts',
-      unlocked: true,
-      unlockedDate: '2025-02-10',
-      rarity: 'epic'
-    },
-    {
-      id: '4',
-      name: 'Legend Status',
-      description: 'Erreiche 10.000 Fame',
-      unlocked: false,
-      rarity: 'legendary'
-    },
-    {
-      id: '5',
-      name: 'Crew Leader',
-      description: 'Gründe eine Crew mit 10+ Members',
-      unlocked: false,
-      rarity: 'epic'
-    },
-  ];
+  // Get all achievements with status
+  const allAchievements = getAllAchievements();
 
-  const getRarityColor = (rarity: string) => {
+  // Filter achievements
+  const filteredAchievements = allAchievements.filter(achievement => {
+    const matchesSearch = searchQuery === '' ||
+      achievement.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      achievement.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || achievement.category === selectedCategory;
+    const matchesRarity = selectedRarity === 'all' || achievement.rarity === selectedRarity;
+    return matchesSearch && matchesCategory && matchesRarity;
+  });
+
+  const getRarityColor = (rarity: AchievementRarity) => {
     switch (rarity) {
-      case 'legendary': return 'bg-primary/20 text-primary border-primary';
-      case 'epic': return 'bg-purple-500/20 text-purple-400 border-purple-500';
-      case 'rare': return 'bg-neon-cyan/20 text-neon-cyan border-neon-cyan';
-      case 'common': return 'bg-neon-lime/20 text-neon-lime border-neon-lime';
+      case 'MYTHIC': return 'bg-gradient-to-r from-primary/20 via-purple-500/20 to-neon-cyan/20 text-primary border-primary';
+      case 'LEGENDARY': return 'bg-primary/20 text-primary border-primary';
+      case 'EPIC': return 'bg-purple-500/20 text-purple-400 border-purple-500';
+      case 'RARE': return 'bg-blue-500/20 text-blue-400 border-blue-500';
+      case 'UNCOMMON': return 'bg-neon-cyan/20 text-neon-cyan border-neon-cyan';
+      case 'COMMON': return 'bg-neon-lime/20 text-neon-lime border-neon-lime';
       default: return 'bg-muted/20 text-muted-foreground border-muted-foreground';
     }
   };
@@ -387,53 +363,209 @@ const Profile: React.FC = () => {
 
           {/* Achievements Tab */}
           <TabsContent value="achievements" className="space-y-4">
-            <Card className="p-6">
-              <h3 className="text-2xl font-black uppercase mb-4 flex items-center gap-2">
-                <Trophy className="w-6 h-6 text-neon-orange" />
-                Achievements
-              </h3>
-              <div className="space-y-3">
-                {achievements.map((achievement) => (
-                  <Card
-                    key={achievement.id}
-                    className={`p-4 ${achievement.unlocked ? 'bg-card/70' : 'bg-card/30 opacity-60'} backdrop-blur`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${
-                          achievement.unlocked
-                            ? 'bg-neon-orange/20 border-2 border-neon-orange'
-                            : 'bg-muted/20 border-2 border-muted'
-                        }`}>
-                          {achievement.unlocked ? (
-                            <Award className="w-8 h-8 text-neon-orange" />
-                          ) : (
-                            <Award className="w-8 h-8 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-bold text-lg">{achievement.name}</span>
-                            <Badge className={getRarityColor(achievement.rarity)}>
-                              {achievement.rarity}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{achievement.description}</p>
-                          {achievement.unlocked && achievement.unlockedDate && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Freigeschaltet am {new Date(achievement.unlockedDate).toLocaleDateString('de-DE')}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      {achievement.unlocked && (
-                        <Zap className="w-6 h-6 text-neon-orange" />
-                      )}
-                    </div>
-                  </Card>
-                ))}
+            {/* Achievement Stats Overview */}
+            <div className="grid grid-cols-4 gap-4">
+              <Card className="p-4 bg-primary/10 border-primary">
+                <div className="flex items-center gap-2 mb-2">
+                  <Trophy className="w-5 h-5 text-primary" />
+                  <span className="text-xs text-muted-foreground">Gesamt</span>
+                </div>
+                <div className="text-2xl font-black text-primary">{achievementStats.total}</div>
+              </Card>
+              <Card className="p-4 bg-neon-lime/10 border-neon-lime">
+                <div className="flex items-center gap-2 mb-2">
+                  <Award className="w-5 h-5 text-neon-lime" />
+                  <span className="text-xs text-muted-foreground">Freigeschaltet</span>
+                </div>
+                <div className="text-2xl font-black text-neon-lime">{achievementStats.unlocked}</div>
+              </Card>
+              <Card className="p-4 bg-muted/10 border-muted">
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Gesperrt</span>
+                </div>
+                <div className="text-2xl font-black">{achievementStats.locked}</div>
+              </Card>
+              <Card className="p-4 bg-neon-orange/10 border-neon-orange">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-5 h-5 text-neon-orange" />
+                  <span className="text-xs text-muted-foreground">Fortschritt</span>
+                </div>
+                <div className="text-2xl font-black text-neon-orange">
+                  {Math.round((achievementStats.unlocked / achievementStats.total) * 100)}%
+                </div>
+              </Card>
+            </div>
+
+            {/* Filters */}
+            <Card className="p-4">
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* Search */}
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Achievements durchsuchen..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                {/* Category Filter */}
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value as AchievementCategory | 'all')}
+                  className="px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="all">Alle Kategorien</option>
+                  <option value="Beginner">Beginner</option>
+                  <option value="Train">Train</option>
+                  <option value="Art">Art</option>
+                  <option value="Stealth">Stealth</option>
+                  <option value="Location">Location</option>
+                  <option value="Prestige">Prestige</option>
+                  <option value="Speed">Speed</option>
+                  <option value="Special">Special</option>
+                </select>
+
+                {/* Rarity Filter */}
+                <select
+                  value={selectedRarity}
+                  onChange={(e) => setSelectedRarity(e.target.value as AchievementRarity | 'all')}
+                  className="px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="all">Alle Seltenheiten</option>
+                  <option value="COMMON">Common</option>
+                  <option value="UNCOMMON">Uncommon</option>
+                  <option value="RARE">Rare</option>
+                  <option value="EPIC">Epic</option>
+                  <option value="LEGENDARY">Legendary</option>
+                  <option value="MYTHIC">Mythic</option>
+                </select>
+              </div>
+
+              <div className="mt-3 text-sm text-muted-foreground">
+                Zeige {filteredAchievements.length} von {allAchievements.length} Achievements
               </div>
             </Card>
+
+            {/* Achievements Grid */}
+            <div className="grid grid-cols-1 gap-3">
+              {filteredAchievements.map((achievement) => {
+                const IconComponent = (LucideIcons as any)[achievement.icon] || LucideIcons.Award;
+
+                return (
+                  <Card
+                    key={achievement.id}
+                    className={cn(
+                      'p-4 backdrop-blur transition-all hover:scale-[1.02]',
+                      achievement.unlocked ? 'bg-card/70 border-2' : 'bg-card/30 opacity-70'
+                    )}
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Icon */}
+                      <div
+                        className={cn(
+                          'w-16 h-16 rounded-lg flex items-center justify-center border-2 flex-shrink-0',
+                          achievement.unlocked
+                            ? getRarityColor(achievement.rarity)
+                            : 'bg-muted/20 border-muted'
+                        )}
+                      >
+                        <IconComponent
+                          className={cn(
+                            'w-8 h-8',
+                            achievement.unlocked ? '' : 'text-muted-foreground'
+                          )}
+                        />
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="font-bold text-lg">{achievement.name}</span>
+                              <Badge className={cn('border', getRarityColor(achievement.rarity))}>
+                                {achievement.rarity}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {achievement.category}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-2">{achievement.description}</p>
+                          </div>
+
+                          {achievement.unlocked && (
+                            <Zap className="w-6 h-6 text-neon-orange flex-shrink-0" />
+                          )}
+                        </div>
+
+                        {/* Progress Bar (for locked achievements) */}
+                        {!achievement.unlocked && achievement.progress > 0 && (
+                          <div className="mb-2">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="text-muted-foreground">Fortschritt</span>
+                              <span className="font-bold">{Math.round(achievement.progress)}%</span>
+                            </div>
+                            <Progress value={achievement.progress} className="h-2" />
+                          </div>
+                        )}
+
+                        {/* Rewards */}
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          {achievement.rewards.exp > 0 && (
+                            <div className="flex items-center gap-1 bg-purple-500/20 px-2 py-1 rounded border border-purple-500/50">
+                              <Zap className="w-3 h-3 text-purple-400" />
+                              <span className="font-bold text-purple-400">+{achievement.rewards.exp} XP</span>
+                            </div>
+                          )}
+                          {achievement.rewards.money > 0 && (
+                            <div className="flex items-center gap-1 bg-neon-lime/20 px-2 py-1 rounded border border-neon-lime/50">
+                              <DollarSign className="w-3 h-3 text-neon-lime" />
+                              <span className="font-bold text-neon-lime">${achievement.rewards.money}</span>
+                            </div>
+                          )}
+                          {achievement.rewards.reputation > 0 && (
+                            <div className="flex items-center gap-1 bg-neon-orange/20 px-2 py-1 rounded border border-neon-orange/50">
+                              <Star className="w-3 h-3 text-neon-orange" />
+                              <span className="font-bold text-neon-orange">+{achievement.rewards.reputation} Rep</span>
+                            </div>
+                          )}
+                          {achievement.rewards.unlocks && achievement.rewards.unlocks.length > 0 && (
+                            <div className="flex items-center gap-1 bg-primary/20 px-2 py-1 rounded border border-primary/50">
+                              <Package className="w-3 h-3 text-primary" />
+                              <span className="font-bold text-primary">{achievement.rewards.unlocks.length} Item(s)</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Unlocked date */}
+                        {achievement.unlocked && achievement.unlockedAt && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Freigeschaltet am {new Date(achievement.unlockedAt).toLocaleDateString('de-DE', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {filteredAchievements.length === 0 && (
+              <Card className="p-12 text-center">
+                <Trophy className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-xl font-bold mb-2">Keine Achievements gefunden</h3>
+                <p className="text-muted-foreground">
+                  Versuche andere Filter oder Suchbegriffe.
+                </p>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>

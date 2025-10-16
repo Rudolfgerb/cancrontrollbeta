@@ -13,6 +13,7 @@ import Crew from './Crew';
 import Profile from './Profile';
 import Settings from './Settings';
 import { useGame, Spot } from '@/contexts/GameContext';
+import { useAchievements } from '@/contexts/AchievementContext';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { Map, ShoppingBag, Home, Star, DollarSign, AlertTriangle, Trophy, SprayCan, Users, User, Settings as SettingsIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -43,12 +44,17 @@ const Game: React.FC = () => {
   const [paintResult, setPaintResult] = useState<{ quality: number; fame: number; money: number } | null>(null);
 
   const { gameState, selectSpot, paintSpot, resetWanted, getArrested } = useGame();
+  const { trackAction } = useAchievements();
   const { playClick, playSuccess, playBusted } = useSoundEffects();
 
   const handleSpotCapture = (spot: CapturedSpot) => {
     playSuccess();
     setCapturedSpots(prev => [...prev, spot]);
     toast.success(`Spot erfasst! Insgesamt: ${capturedSpots.length + 1}`);
+
+    // Track achievements
+    trackAction('spots_captured', capturedSpots.length + 1);
+    trackAction('screenshots', 1);
   };
 
   const handleCapturedSpotSelect = (spot: CapturedSpot) => {
@@ -76,6 +82,7 @@ const Game: React.FC = () => {
   const handlePaintComplete = (quality: number) => {
     let fameEarned = 0;
     let moneyEarned = 0;
+    const currentDifficulty = selectedSpot?.difficulty || selectedCapturedSpot?.difficulty;
 
     if (selectedSpot) {
       fameEarned = Math.floor(selectedSpot.fameReward * quality);
@@ -95,6 +102,37 @@ const Game: React.FC = () => {
     }
 
     setPaintResult({ quality, fame: fameEarned, money: moneyEarned });
+
+    // Track achievements
+    trackAction('pieces_completed', gameState.stats.totalPieces + 1);
+    trackAction('spots_painted', gameState.stats.spotsPainted + 1);
+    trackAction('fame', gameState.fame + fameEarned);
+    trackAction('money_earned', moneyEarned);
+
+    // Track quality-based achievements
+    if (quality >= 0.9) {
+      trackAction('high_quality_pieces', 1);
+    }
+    if (quality >= 0.95) {
+      trackAction('masterpieces', 1);
+    }
+
+    // Track difficulty-based achievements
+    if (currentDifficulty === 'hard') {
+      trackAction('hard_pieces', 1);
+    }
+    if (currentDifficulty === 'extreme') {
+      trackAction('extreme_pieces', 1);
+    }
+
+    // Track time-based achievements
+    const hour = new Date().getHours();
+    if (hour >= 22 || hour < 6) {
+      trackAction('night_pieces', 1);
+    }
+    if (hour >= 5 && hour < 8) {
+      trackAction('morning_pieces', 1);
+    }
 
     playSuccess();
     setShowResultDialog(true);
