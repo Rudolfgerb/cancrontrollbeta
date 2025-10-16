@@ -4,24 +4,58 @@ import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CityMap } from '@/components/game/CityMap';
 import { PaintCanvas } from '@/components/game/PaintCanvas';
+import { EnhancedPaintCanvas } from '@/components/game/EnhancedPaintCanvas';
+import { EnhancedGoogleMap } from '@/components/game/EnhancedGoogleMap';
 import { Shop } from '@/components/game/Shop';
+import { EnhancedShop } from '@/components/game/EnhancedShop';
 import { Hideout } from '@/components/game/Hideout';
+import Crew from './Crew';
+import Profile from './Profile';
+import Settings from './Settings';
 import { useGame, Spot } from '@/contexts/GameContext';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
-import { Map, ShoppingBag, Home, Star, DollarSign, AlertTriangle, Trophy, SprayCan } from 'lucide-react';
+import { Map, ShoppingBag, Home, Star, DollarSign, AlertTriangle, Trophy, SprayCan, Users, User, Settings as SettingsIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-type GameView = 'hideout' | 'map' | 'shop' | 'painting';
+interface CapturedSpot {
+  id: string;
+  name: string;
+  position: { lat: number; lng: number };
+  heading: number;
+  pitch: number;
+  imageData: string;
+  difficulty: 'easy' | 'medium' | 'hard' | 'extreme';
+  timestamp: number;
+  userId?: string;
+}
+
+type GameView = 'hideout' | 'map' | 'shop' | 'painting' | 'crew' | 'profile' | 'settings';
 
 const Game: React.FC = () => {
+  const navigate = useNavigate();
   const [currentView, setCurrentView] = useState<GameView>('hideout');
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
+  const [selectedCapturedSpot, setSelectedCapturedSpot] = useState<CapturedSpot | null>(null);
+  const [capturedSpots, setCapturedSpots] = useState<CapturedSpot[]>([]);
   const [showSpotDialog, setShowSpotDialog] = useState(false);
   const [showResultDialog, setShowResultDialog] = useState(false);
   const [paintResult, setPaintResult] = useState<{ quality: number; fame: number; money: number } | null>(null);
-  
+
   const { gameState, selectSpot, paintSpot, resetWanted, getArrested } = useGame();
   const { playClick, playSuccess, playBusted } = useSoundEffects();
+
+  const handleSpotCapture = (spot: CapturedSpot) => {
+    playSuccess();
+    setCapturedSpots(prev => [...prev, spot]);
+    toast.success(`Spot erfasst! Insgesamt: ${capturedSpots.length + 1}`);
+  };
+
+  const handleCapturedSpotSelect = (spot: CapturedSpot) => {
+    playClick();
+    setSelectedCapturedSpot(spot);
+    setCurrentView('painting');
+  };
 
   const handleSpotSelect = (spot: Spot) => {
     if (spot.painted) {
@@ -40,17 +74,33 @@ const Game: React.FC = () => {
   };
 
   const handlePaintComplete = (quality: number) => {
-    if (!selectedSpot) return;
+    let fameEarned = 0;
+    let moneyEarned = 0;
 
-    const fameEarned = Math.floor(selectedSpot.fameReward * quality);
-    const moneyEarned = Math.floor(selectedSpot.moneyReward * quality);
+    if (selectedSpot) {
+      fameEarned = Math.floor(selectedSpot.fameReward * quality);
+      moneyEarned = Math.floor(selectedSpot.moneyReward * quality);
+      paintSpot(selectedSpot.id, quality);
+    } else if (selectedCapturedSpot) {
+      // Calculate rewards based on difficulty for captured spots
+      const baseRewards = {
+        easy: { fame: 50, money: 100 },
+        medium: { fame: 100, money: 200 },
+        hard: { fame: 200, money: 400 },
+        extreme: { fame: 500, money: 1000 },
+      };
+      const rewards = baseRewards[selectedCapturedSpot.difficulty];
+      fameEarned = Math.floor(rewards.fame * quality);
+      moneyEarned = Math.floor(rewards.money * quality);
+    }
 
-    paintSpot(selectedSpot.id, quality);
     setPaintResult({ quality, fame: fameEarned, money: moneyEarned });
-    
+
     playSuccess();
     setShowResultDialog(true);
     setCurrentView('map');
+    setSelectedSpot(null);
+    setSelectedCapturedSpot(null);
 
     // Reset wanted level after successful paint
     if (gameState.wantedLevel > 0) {
@@ -151,6 +201,39 @@ const Game: React.FC = () => {
             <ShoppingBag className="w-5 h-5" />
             Shop
           </Button>
+          <Button
+            variant={currentView === 'crew' ? 'default' : 'outline'}
+            className="w-full justify-start gap-3"
+            onClick={() => {
+              playClick();
+              setCurrentView('crew');
+            }}
+          >
+            <Users className="w-5 h-5" />
+            Crew
+          </Button>
+          <Button
+            variant={currentView === 'profile' ? 'default' : 'outline'}
+            className="w-full justify-start gap-3"
+            onClick={() => {
+              playClick();
+              setCurrentView('profile');
+            }}
+          >
+            <User className="w-5 h-5" />
+            Profil
+          </Button>
+          <Button
+            variant={currentView === 'settings' ? 'default' : 'outline'}
+            className="w-full justify-start gap-3"
+            onClick={() => {
+              playClick();
+              setCurrentView('settings');
+            }}
+          >
+            <SettingsIcon className="w-5 h-5" />
+            Einstellungen
+          </Button>
 
           {/* Quick Stats */}
           <Card className="p-4 mt-6">
@@ -173,15 +256,37 @@ const Game: React.FC = () => {
         </div>
 
         {/* Main View */}
-        <div className="flex-1 min-h-[600px]">
+        <div className="flex-1 min-h-[600px] overflow-y-auto">
           {currentView === 'hideout' && <Hideout />}
-          {currentView === 'map' && <CityMap onSelectSpot={handleSpotSelect} />}
-          {currentView === 'shop' && <Shop />}
-          {currentView === 'painting' && selectedSpot && (
-            <PaintCanvas
-              onComplete={handlePaintComplete}
-              onBusted={handleBusted}
-              difficulty={selectedSpot.difficulty}
+          {currentView === 'map' && (
+            <EnhancedGoogleMap
+              onSpotCapture={handleSpotCapture}
+              onSpotSelect={handleCapturedSpotSelect}
+              capturedSpots={capturedSpots}
+            />
+          )}
+          {currentView === 'shop' && <EnhancedShop />}
+          {currentView === 'crew' && <Crew />}
+          {currentView === 'profile' && <Profile />}
+          {currentView === 'settings' && <Settings />}
+          {currentView === 'painting' && (selectedSpot || selectedCapturedSpot) && (
+            <EnhancedPaintCanvas
+              backgroundImage={selectedCapturedSpot?.imageData}
+              spotId={selectedSpot?.id || selectedCapturedSpot?.id || ''}
+              difficulty={selectedSpot?.difficulty || selectedCapturedSpot?.difficulty || 'medium'}
+              spotRiskFactor={
+                (selectedSpot?.difficulty || selectedCapturedSpot?.difficulty) === 'easy' ? 0.3 :
+                (selectedSpot?.difficulty || selectedCapturedSpot?.difficulty) === 'medium' ? 0.5 :
+                (selectedSpot?.difficulty || selectedCapturedSpot?.difficulty) === 'hard' ? 0.7 : 0.9
+              }
+              onComplete={(quality, imageData) => {
+                handlePaintComplete(quality);
+              }}
+              onCancel={() => {
+                setCurrentView('map');
+                setSelectedSpot(null);
+                setSelectedCapturedSpot(null);
+              }}
             />
           )}
         </div>
