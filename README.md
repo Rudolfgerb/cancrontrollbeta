@@ -31,8 +31,8 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/cancontroll.git
-cd cancontroll
+git clone https://github.com/Rudolfgerb/cancrontrollbeta.git
+cd cancrontrollbeta
 
 # Install frontend dependencies
 npm install
@@ -275,7 +275,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/cancontroll/issues)
+- **Issues**: [GitHub Issues](https://github.com/Rudolfgerb/cancrontrollbeta/issues)
 - **Documentation**: [docs/](docs/)
 - **Security**: Report vulnerabilities privately
 
