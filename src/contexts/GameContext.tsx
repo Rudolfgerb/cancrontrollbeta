@@ -29,6 +29,18 @@ export interface Spot {
   hasGuard: boolean;
   painted: boolean;
   playerPiece?: string;
+  imageData?: string;
+}
+
+export interface GalleryPiece {
+  id: string;
+  imageData: string; // base64 image
+  spotName: string;
+  difficulty: 'easy' | 'medium' | 'hard' | 'extreme';
+  quality: number;
+  fameEarned: number;
+  moneyEarned: number;
+  timestamp: number;
 }
 
 interface GameState {
@@ -43,6 +55,7 @@ interface GameState {
     selectedDesign: string;
   };
   spots: Spot[];
+  gallery: GalleryPiece[];
   stats: {
     totalPieces: number;
     spotsPainted: number;
@@ -66,6 +79,9 @@ interface GameContextType {
   selectDesign: (designId: string) => void;
   resetWanted: () => void;
   getArrested: () => void;
+  saveToGallery: (piece: GalleryPiece) => void;
+  removeFromGallery: (pieceId: string) => void;
+  addSpot: (spot: Spot) => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -93,6 +109,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       selectedDesign: 'simple-tag',
     },
     spots: initialSpots,
+    gallery: [],
     stats: {
       totalPieces: 0,
       spotsPainted: 0,
@@ -211,6 +228,41 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
   }, []);
 
+  const saveToGallery = useCallback((piece: GalleryPiece) => {
+    setGameState(prev => ({
+      ...prev,
+      gallery: [piece, ...prev.gallery], // Add to beginning for newest first
+    }));
+
+    // Save to localStorage
+    const savedGallery = localStorage.getItem('gallery');
+    const gallery: GalleryPiece[] = savedGallery ? JSON.parse(savedGallery) : [];
+    gallery.unshift(piece);
+    localStorage.setItem('gallery', JSON.stringify(gallery));
+  }, []);
+
+  const addSpot = useCallback((spot: Spot) => {
+    setGameState(prev => ({
+      ...prev,
+      spots: [...prev.spots, spot],
+    }));
+  }, []);
+
+  const removeFromGallery = useCallback((pieceId: string) => {
+    setGameState(prev => ({
+      ...prev,
+      gallery: prev.gallery.filter(p => p.id !== pieceId),
+    }));
+
+    // Update localStorage
+    const savedGallery = localStorage.getItem('gallery');
+    if (savedGallery) {
+      const gallery: GalleryPiece[] = JSON.parse(savedGallery);
+      const filtered = gallery.filter(p => p.id !== pieceId);
+      localStorage.setItem('gallery', JSON.stringify(filtered));
+    }
+  }, []);
+
   return (
     <GameContext.Provider
       value={{
@@ -228,6 +280,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         selectDesign,
         resetWanted,
         getArrested,
+        saveToGallery,
+        removeFromGallery,
+        addSpot,
       }}
     >
       {children}

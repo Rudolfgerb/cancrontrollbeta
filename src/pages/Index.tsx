@@ -1,12 +1,15 @@
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { SprayCan, Map, Users, Trophy, Palette, Zap, User } from "lucide-react";
+import { SprayCan, Map, Users, Trophy, Palette, Zap, User, LogIn, UserPlus } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleStartGame = () => {
+    // Temporarily bypass auth - go directly to game
     navigate('/game');
   };
 
@@ -81,43 +84,67 @@ const Index = () => {
           </div>
 
           {/* Navigation Buttons */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto mb-16">
-            <Button
-              size="lg"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg px-6 py-6 shadow-neon flex flex-col gap-2 h-auto"
-              onClick={handleStartGame}
-            >
-              <SprayCan className="w-8 h-8" />
-              <span>Game</span>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-2 border-neon-cyan text-neon-cyan hover:bg-neon-cyan/20 font-bold text-lg px-6 py-6 flex flex-col gap-2 h-auto"
-              onClick={() => navigate('/crew')}
-            >
-              <Users className="w-8 h-8" />
-              <span>Crew</span>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-2 border-neon-lime text-neon-lime hover:bg-neon-lime/20 font-bold text-lg px-6 py-6 flex flex-col gap-2 h-auto"
-              onClick={() => navigate('/profile')}
-            >
-              <User className="w-8 h-8" />
-              <span>Profil</span>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-2 border-neon-orange text-neon-orange hover:bg-neon-orange/20 font-bold text-lg px-6 py-6 flex flex-col gap-2 h-auto"
-              onClick={() => navigate('/game')}
-            >
-              <Map className="w-8 h-8" />
-              <span>Map</span>
-            </Button>
-          </div>
+          {user ? (
+            // Logged in user
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto mb-16">
+              <Button
+                size="lg"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg px-6 py-6 shadow-neon flex flex-col gap-2 h-auto"
+                onClick={handleStartGame}
+              >
+                <SprayCan className="w-8 h-8" />
+                <span>Game</span>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-2 border-neon-cyan text-neon-cyan hover:bg-neon-cyan/20 font-bold text-lg px-6 py-6 flex flex-col gap-2 h-auto"
+                onClick={() => navigate('/crew')}
+              >
+                <Users className="w-8 h-8" />
+                <span>Crew</span>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-2 border-neon-lime text-neon-lime hover:bg-neon-lime/20 font-bold text-lg px-6 py-6 flex flex-col gap-2 h-auto"
+                onClick={() => navigate('/profile')}
+              >
+                <User className="w-8 h-8" />
+                <span>Profil</span>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-2 border-neon-orange text-neon-orange hover:bg-neon-orange/20 font-bold text-lg px-6 py-6 flex flex-col gap-2 h-auto"
+                onClick={() => navigate('/game')}
+              >
+                <Map className="w-8 h-8" />
+                <span>Map</span>
+              </Button>
+            </div>
+          ) : (
+            // Not logged in - show auth buttons
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto mb-16">
+              <Button
+                size="lg"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg px-8 py-6 shadow-neon flex items-center justify-center gap-3 h-auto"
+                onClick={() => navigate('/auth/login')}
+              >
+                <LogIn className="w-6 h-6" />
+                <span>Login</span>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-2 border-primary text-primary hover:bg-primary/20 font-bold text-lg px-8 py-6 flex items-center justify-center gap-3 h-auto"
+                onClick={() => navigate('/auth/register')}
+              >
+                <UserPlus className="w-6 h-6" />
+                <span>Registrieren</span>
+              </Button>
+            </div>
+          )}
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">

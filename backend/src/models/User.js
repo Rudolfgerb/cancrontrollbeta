@@ -1,86 +1,41 @@
-import mongoose from 'mongoose';
+import { query } from '../config/database.js';
 import bcrypt from 'bcryptjs';
 
-const userSchema = new mongoose.Schema({
-  username: {
-    type: String,
-    required: [true, 'Username is required'],
-    unique: true,
-    trim: true,
-    minlength: [3, 'Username must be at least 3 characters'],
-    maxlength: [20, 'Username cannot exceed 20 characters'],
-  },
-  email: {
-    type: String,
-    required: [true, 'Email is required'],
-    unique: true,
-    lowercase: true,
-    trim: true,
-    match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email'],
-  },
-  password: {
-    type: String,
-    required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters'],
-    select: false, // Don't return password by default
-  },
-  avatar: {
-    type: String,
-    default: 'default-avatar.png',
-  },
-  isActive: {
-    type: Boolean,
-    default: true,
-  },
-  isAdmin: {
-    type: Boolean,
-    default: false,
-  },
-  lastLogin: {
-    type: Date,
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
-
-// Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
-    return next();
-  }
-
-  try {
+class User {
+  static async create({ username, email, password }) {
     const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
+    const password_hash = await bcrypt.hash(password, salt);
+    const { rows } = await query(
+      'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING *',
+      [username, email, password_hash]
+    );
+    return rows[0];
   }
-});
 
-// Method to compare password
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  try {
-    return await bcrypt.compare(candidatePassword, this.password);
-  } catch (error) {
-    throw new Error('Error comparing passwords');
+  static async findByEmail(email) {
+    const { rows } = await query('SELECT * FROM users WHERE email = $1', [email]);
+    return rows[0];
   }
-};
 
-// Method to get public profile
-userSchema.methods.getPublicProfile = function() {
-  return {
-    id: this._id,
-    username: this.username,
-    email: this.email,
-    avatar: this.avatar,
-    isAdmin: this.isAdmin,
-    createdAt: this.createdAt,
-  };
-};
+  static async findById(id) {
+    const { rows } = await query('SELECT * FROM users WHERE id = $1', [id]);
+    return rows[0];
+  }
 
-const User = mongoose.model('User', userSchema);
+  static async comparePassword(candidatePassword, password_hash) {
+    return await bcrypt.compare(candidatePassword, password_hash);
+  }
+
+  static getPublicProfile(user) {
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar,
+      is_admin: user.is_admin,
+      created_at: user.created_at,
+    };
+  }
+}
 
 export default User;

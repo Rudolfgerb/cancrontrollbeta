@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Star, DollarSign, Shield, Camera, MapPin, Navigation, Crosshair, Crop, Check, X } from 'lucide-react';
+import { Star, DollarSign, Shield, Camera, MapPin, Navigation, Crosshair, Crop, Check, X, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useHaptics } from '@/lib/haptics';
 import html2canvas from 'html2canvas';
@@ -66,6 +66,8 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
   const [spotName, setSpotName] = useState('');
   const [spotDescription, setSpotDescription] = useState('');
   const [riskLevel, setRiskLevel] = useState(5);
+  const [showStartSpotDialog, setShowStartSpotDialog] = useState(false);
+  const [showCancelConfirmDialog, setShowCancelConfirmDialog] = useState(false);
   const streetViewRef = useRef<google.maps.StreetViewPanorama | null>(null);
   const streetViewContainerRef = useRef<HTMLDivElement | null>(null);
   const { light, success } = useHaptics();
@@ -183,7 +185,7 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
   };
 
   const captureStreetView = async () => {
-    if (!streetViewContainerRef.current) {
+    if (!streetView) {
       toast.error('Street View nicht verfügbar');
       return;
     }
@@ -192,21 +194,57 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
     light();
 
     try {
-      // Use html2canvas to capture the Street View
-      const canvas = await html2canvas(streetViewContainerRef.current, {
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#1a1a1a',
-        scale: 1,
+      // Get current position and POV from Street View
+      const position = streetView.getPosition();
+      const pov = streetView.getPov();
+
+      if (!position) {
+        throw new Error('Position nicht verfügbar');
+      }
+
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+
+      // Use Static Street View API to get actual image
+      const params = new URLSearchParams({
+        size: '800x600',
+        location: `${position.lat()},${position.lng()}`,
+        heading: pov.heading.toString(),
+        pitch: pov.pitch.toString(),
+        fov: '90',
+        key: apiKey,
       });
 
+      const staticUrl = `https://maps.googleapis.com/maps/api/streetview?${params.toString()}`;
+
+      // Load the image
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Fehler beim Laden des Bildes'));
+        img.src = staticUrl;
+      });
+
+      // Convert to canvas and then to base64
+      const canvas = document.createElement('canvas');
+      canvas.width = 800;
+      canvas.height = 600;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) {
+        throw new Error('Canvas context nicht verfügbar');
+      }
+
+      ctx.drawImage(img, 0, 0);
       const imageData = canvas.toDataURL('image/png');
+
       setCapturedImage(imageData);
       setShowCropDialog(true);
-      toast.success('Screenshot erstellt! Jetzt zuschneiden');
+      toast.success('Screenshot erfasst! Jetzt zuschneiden');
     } catch (error) {
       console.error('Screenshot error:', error);
-      toast.error('Fehler beim Screenshot');
+      toast.error('Fehler beim Screenshot. Versuche es erneut.');
     } finally {
       setIsCapturing(false);
     }
@@ -215,6 +253,11 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
   const onCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
+
+  const handleCropConfirm = () => {
+    // Show warning dialog instead of directly creating the spot
+    setShowStartSpotDialog(true);
+  };
 
   const createCroppedImage = async () => {
     if (!capturedImage || !croppedAreaPixels || !streetView) {
@@ -282,6 +325,7 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
 
       // Reset states
       setShowCropDialog(false);
+      setShowStartSpotDialog(false);
       setCapturedImage(null);
       setSpotName('');
       setSpotDescription('');
@@ -291,6 +335,27 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
       console.error('Crop error:', error);
       toast.error('Fehler beim Zuschneiden');
     }
+  };
+
+  const handleCancelCrop = () => {
+    if (spotName.trim() || spotDescription.trim() || riskLevel !== 5) {
+      // Show confirmation dialog if user has made changes
+      setShowCancelConfirmDialog(true);
+    } else {
+      // Directly cancel if no changes
+      setShowCropDialog(false);
+      setCapturedImage(null);
+    }
+  };
+
+  const confirmCancelCrop = () => {
+    setShowCropDialog(false);
+    setShowCancelConfirmDialog(false);
+    setCapturedImage(null);
+    setSpotName('');
+    setSpotDescription('');
+    setRiskLevel(5);
+    toast.info('Spot-Erfassung abgebrochen');
   };
 
   const handleMarkerClick = (spot: CapturedSpot) => {
@@ -634,22 +699,104 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
           <DialogFooter className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => {
-                setShowCropDialog(false);
-                setCapturedImage(null);
-              }}
+              onClick={handleCancelCrop}
               className="gap-2"
             >
               <X className="w-4 h-4" />
               Abbrechen
             </Button>
             <Button
-              onClick={createCroppedImage}
+              onClick={handleCropConfirm}
               disabled={!spotName.trim()}
               className="gap-2 bg-primary hover:bg-primary/90"
             >
               <Check className="w-4 h-4" />
               Spot erstellen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Start Spot Warning Dialog */}
+      <Dialog open={showStartSpotDialog} onOpenChange={setShowStartSpotDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase text-orange-500 flex items-center gap-2">
+              <AlertTriangle className="w-6 h-6" />
+              ⚠️ WARNUNG
+            </DialogTitle>
+            <DialogDescription className="text-base pt-4">
+              Sobald Sie den Spot betreten, gibt es kein Zurück mehr!
+              <br /><br />
+              Wollen Sie den Spot jetzt beginnen?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowStartSpotDialog(false);
+                handleCloseStreetView();
+                setShowCropDialog(false);
+                setCapturedImage(null);
+                setSpotName('');
+                setSpotDescription('');
+                setRiskLevel(5);
+              }}
+              className="gap-2"
+            >
+              <MapPin className="w-4 h-4" />
+              Zurück zur Karte
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowStartSpotDialog(false)}
+              className="gap-2"
+            >
+              <X className="w-4 h-4" />
+              Nein
+            </Button>
+            <Button
+              onClick={createCroppedImage}
+              className="gap-2 bg-green-600 hover:bg-green-700"
+            >
+              <Check className="w-4 h-4" />
+              Ja, Spot starten!
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Confirmation Dialog */}
+      <Dialog open={showCancelConfirmDialog} onOpenChange={setShowCancelConfirmDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-yellow-500" />
+              Änderungen verwerfen?
+            </DialogTitle>
+            <DialogDescription className="text-base pt-2">
+              Sind Sie sich sicher, dass Sie verlassen wollen ohne zu speichern?
+              <br />
+              <span className="text-destructive font-bold">Alle Änderungen gehen verloren!</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowCancelConfirmDialog(false)}
+              className="gap-2"
+            >
+              <X className="w-4 h-4" />
+              Zurück
+            </Button>
+            <Button
+              onClick={confirmCancelCrop}
+              variant="destructive"
+              className="gap-2"
+            >
+              <Check className="w-4 h-4" />
+              Ja, verwerfen
             </Button>
           </DialogFooter>
         </DialogContent>

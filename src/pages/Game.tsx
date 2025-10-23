@@ -4,17 +4,19 @@ import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CityMap } from '@/components/game/CityMap';
 import { PaintCanvas } from '@/components/game/PaintCanvas';
-import { EnhancedPaintCanvas } from '@/components/game/EnhancedPaintCanvas';
+import { ImprovedPaintCanvasWithStealth } from '@/components/game/ImprovedPaintCanvasWithStealth';
 import { EnhancedGoogleMap } from '@/components/game/EnhancedGoogleMap';
 import { Shop } from '@/components/game/Shop';
 import { EnhancedShop } from '@/components/game/EnhancedShop';
-import { Hideout } from '@/components/game/Hideout';
+import { EnhancedHideout } from '@/components/game/EnhancedHideout';
 import Crew from './Crew';
 import Profile from './Profile';
 import Settings from './Settings';
 import { useGame, Spot } from '@/contexts/GameContext';
 import { useAchievements } from '@/contexts/AchievementContext';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { BottomNavBar } from '@/components/game/BottomNavBar';
 import { Map, ShoppingBag, Home, Star, DollarSign, AlertTriangle, Trophy, SprayCan, Users, User, Settings as SettingsIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -42,6 +44,7 @@ const Game: React.FC = () => {
   const [showSpotDialog, setShowSpotDialog] = useState(false);
   const [showResultDialog, setShowResultDialog] = useState(false);
   const [paintResult, setPaintResult] = useState<{ quality: number; fame: number; money: number } | null>(null);
+  const isMobile = useIsMobile();
 
   const { gameState, selectSpot, paintSpot, resetWanted, getArrested } = useGame();
   const { trackAction } = useAchievements();
@@ -50,7 +53,9 @@ const Game: React.FC = () => {
   const handleSpotCapture = (spot: CapturedSpot) => {
     playSuccess();
     setCapturedSpots(prev => [...prev, spot]);
-    toast.success(`Spot erfasst! Insgesamt: ${capturedSpots.length + 1}`);
+    setSelectedCapturedSpot(spot);
+    setCurrentView('painting');
+    toast.success(`Spot erfasst! Los geht's mit dem Malen!`);
 
     // Track achievements
     trackAction('spots_captured', capturedSpots.length + 1);
@@ -205,97 +210,99 @@ const Game: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col md:flex-row max-w-7xl mx-auto w-full">
         {/* Sidebar Navigation */}
-        <div className="md:w-64 bg-urban-surface border-r-2 border-urban-border p-4 space-y-2">
-          <Button
-            variant={currentView === 'hideout' ? 'default' : 'outline'}
-            className="w-full justify-start gap-3"
-            onClick={() => {
-              playClick();
-              setCurrentView('hideout');
-            }}
-          >
-            <Home className="w-5 h-5" />
-            Hideout
-          </Button>
-          <Button
-            variant={currentView === 'map' ? 'default' : 'outline'}
-            className="w-full justify-start gap-3"
-            onClick={() => {
-              playClick();
-              setCurrentView('map');
-            }}
-          >
-            <Map className="w-5 h-5" />
-            Stadt-Map
-          </Button>
-          <Button
-            variant={currentView === 'shop' ? 'default' : 'outline'}
-            className="w-full justify-start gap-3"
-            onClick={() => {
-              playClick();
-              setCurrentView('shop');
-            }}
-          >
-            <ShoppingBag className="w-5 h-5" />
-            Shop
-          </Button>
-          <Button
-            variant={currentView === 'crew' ? 'default' : 'outline'}
-            className="w-full justify-start gap-3"
-            onClick={() => {
-              playClick();
-              setCurrentView('crew');
-            }}
-          >
-            <Users className="w-5 h-5" />
-            Crew
-          </Button>
-          <Button
-            variant={currentView === 'profile' ? 'default' : 'outline'}
-            className="w-full justify-start gap-3"
-            onClick={() => {
-              playClick();
-              setCurrentView('profile');
-            }}
-          >
-            <User className="w-5 h-5" />
-            Profil
-          </Button>
-          <Button
-            variant={currentView === 'settings' ? 'default' : 'outline'}
-            className="w-full justify-start gap-3"
-            onClick={() => {
-              playClick();
-              setCurrentView('settings');
-            }}
-          >
-            <SettingsIcon className="w-5 h-5" />
-            Einstellungen
-          </Button>
+        {!isMobile && (
+          <div className="md:w-64 bg-urban-surface border-r-2 border-urban-border p-4 space-y-2">
+            <Button
+              variant={currentView === 'hideout' ? 'default' : 'outline'}
+              className="w-full justify-start gap-3"
+              onClick={() => {
+                playClick();
+                setCurrentView('hideout');
+              }}
+            >
+              <Home className="w-5 h-5" />
+              Hideout
+            </Button>
+            <Button
+              variant={currentView === 'map' ? 'default' : 'outline'}
+              className="w-full justify-start gap-3"
+              onClick={() => {
+                playClick();
+                setCurrentView('map');
+              }}
+            >
+              <Map className="w-5 h-5" />
+              Stadt-Map
+            </Button>
+            <Button
+              variant={currentView === 'shop' ? 'default' : 'outline'}
+              className="w-full justify-start gap-3"
+              onClick={() => {
+                playClick();
+                setCurrentView('shop');
+              }}
+            >
+              <ShoppingBag className="w-5 h-5" />
+              Shop
+            </Button>
+            <Button
+              variant={currentView === 'crew' ? 'default' : 'outline'}
+              className="w-full justify-start gap-3"
+              onClick={() => {
+                playClick();
+                setCurrentView('crew');
+              }}
+            >
+              <Users className="w-5 h-5" />
+              Crew
+            </Button>
+            <Button
+              variant={currentView === 'profile' ? 'default' : 'outline'}
+              className="w-full justify-start gap-3"
+              onClick={() => {
+                playClick();
+                setCurrentView('profile');
+              }}
+            >
+              <User className="w-5 h-5" />
+              Profil
+            </Button>
+            <Button
+              variant={currentView === 'settings' ? 'default' : 'outline'}
+              className="w-full justify-start gap-3"
+              onClick={() => {
+                playClick();
+                setCurrentView('settings');
+              }}
+            >
+              <SettingsIcon className="w-5 h-5" />
+              Einstellungen
+            </Button>
 
-          {/* Quick Stats */}
-          <Card className="p-4 mt-6">
-            <div className="text-xs text-muted-foreground uppercase mb-2">Quick Stats</div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Pieces:</span>
-                <span className="font-bold">{gameState.stats.totalPieces}</span>
+            {/* Quick Stats */}
+            <Card className="p-4 mt-6">
+              <div className="text-xs text-muted-foreground uppercase mb-2">Quick Stats</div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Pieces:</span>
+                  <span className="font-bold">{gameState.stats.totalPieces}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Spots:</span>
+                  <span className="font-bold">{gameState.stats.spotsPainted}/{gameState.spots.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Best Fame:</span>
+                  <span className="font-bold text-neon-orange">{gameState.stats.bestFame}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Spots:</span>
-                <span className="font-bold">{gameState.stats.spotsPainted}/{gameState.spots.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Best Fame:</span>
-                <span className="font-bold text-neon-orange">{gameState.stats.bestFame}</span>
-              </div>
-            </div>
-          </Card>
-        </div>
+            </Card>
+          </div>
+        )}
 
         {/* Main View */}
-        <div className="flex-1 min-h-[600px] overflow-y-auto">
-          {currentView === 'hideout' && <Hideout />}
+        <div className={`flex-1 min-h-[600px] overflow-y-auto ${isMobile ? 'pb-16' : ''}`}>
+          {currentView === 'hideout' && <EnhancedHideout />}
           {currentView === 'map' && (
             <EnhancedGoogleMap
               onSpotCapture={handleSpotCapture}
@@ -308,15 +315,10 @@ const Game: React.FC = () => {
           {currentView === 'profile' && <Profile />}
           {currentView === 'settings' && <Settings />}
           {currentView === 'painting' && (selectedSpot || selectedCapturedSpot) && (
-            <EnhancedPaintCanvas
-              backgroundImage={selectedCapturedSpot?.imageData}
+            <ImprovedPaintCanvasWithStealth
+              backgroundImage={selectedSpot?.imageData || selectedCapturedSpot?.imageData}
               spotId={selectedSpot?.id || selectedCapturedSpot?.id || ''}
               difficulty={selectedSpot?.difficulty || selectedCapturedSpot?.difficulty || 'medium'}
-              spotRiskFactor={
-                (selectedSpot?.difficulty || selectedCapturedSpot?.difficulty) === 'easy' ? 0.3 :
-                (selectedSpot?.difficulty || selectedCapturedSpot?.difficulty) === 'medium' ? 0.5 :
-                (selectedSpot?.difficulty || selectedCapturedSpot?.difficulty) === 'hard' ? 0.7 : 0.9
-              }
               onComplete={(quality, imageData) => {
                 handlePaintComplete(quality);
               }}
@@ -325,10 +327,19 @@ const Game: React.FC = () => {
                 setSelectedSpot(null);
                 setSelectedCapturedSpot(null);
               }}
+              onBusted={() => {
+                playBusted();
+                setCurrentView('hideout');
+                setSelectedSpot(null);
+                setSelectedCapturedSpot(null);
+                toast.error('Du wurdest verhaftet!');
+              }}
             />
           )}
         </div>
       </div>
+
+      {isMobile && <BottomNavBar currentView={currentView} setCurrentView={setCurrentView} />}
 
       {/* Spot Selection Dialog */}
       <Dialog open={showSpotDialog} onOpenChange={setShowSpotDialog}>
