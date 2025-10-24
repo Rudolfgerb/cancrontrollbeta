@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { getCurrentUserId } from '@/lib/userHelper';
 
 export interface GraffitiDesign {
   id: string;
@@ -96,8 +97,30 @@ const initialSpots: Spot[] = [
   { id: 's7', name: 'Polizeiwache', x: 50, y: 80, difficulty: 'extreme', fameReward: 150, moneyReward: 100, hasGuard: true, painted: false },
 ];
 
-export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [gameState, setGameState] = useState<GameState>({
+const GAME_STATE_KEY = 'cancontroll_gamestate';
+
+// Load game state from localStorage for current user
+const loadGameState = (): GameState => {
+  try {
+    const userId = getCurrentUserId();
+    const stored = localStorage.getItem(`${GAME_STATE_KEY}_${userId}`);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Merge with initial spots to ensure new spots are added
+      return {
+        ...parsed,
+        spots: initialSpots.map(initialSpot => {
+          const savedSpot = parsed.spots?.find((s: Spot) => s.id === initialSpot.id);
+          return savedSpot || initialSpot;
+        }),
+      };
+    }
+  } catch (error) {
+    console.error('Error loading game state:', error);
+  }
+
+  // Return initial state
+  return {
     fame: 0,
     money: 50,
     wantedLevel: 0,
@@ -116,7 +139,26 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       timesArrested: 0,
       bestFame: 0,
     },
-  });
+  };
+};
+
+// Save game state to localStorage for current user
+const saveGameState = (state: GameState) => {
+  try {
+    const userId = getCurrentUserId();
+    localStorage.setItem(`${GAME_STATE_KEY}_${userId}`, JSON.stringify(state));
+  } catch (error) {
+    console.error('Error saving game state:', error);
+  }
+};
+
+export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [gameState, setGameState] = useState<GameState>(loadGameState);
+
+  // Save game state to localStorage whenever it changes
+  useEffect(() => {
+    saveGameState(gameState);
+  }, [gameState]);
 
   const addFame = useCallback((amount: number) => {
     setGameState(prev => ({

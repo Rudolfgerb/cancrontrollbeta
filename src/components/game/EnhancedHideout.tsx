@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useGame } from '@/contexts/GameContext';
-import { Trophy, DollarSign, Star, Target, UserX, Award, Briefcase, Clock, Image, AlertTriangle, X } from 'lucide-react';
+import { Trophy, DollarSign, Star, Target, UserX, Award, Briefcase, Clock, Image, AlertTriangle, X, SprayCan } from 'lucide-react';
 import { toast } from 'sonner';
 import { Gallery } from './Gallery';
+import { galleryService, PaintedPiece } from '@/lib/gallery';
+import { getCurrentUserId } from '@/lib/userHelper';
 
 export const EnhancedHideout: React.FC = () => {
   const { gameState, addMoney } = useGame();
@@ -20,6 +23,8 @@ export const EnhancedHideout: React.FC = () => {
   const [workEndTime, setWorkEndTime] = useState<number | null>(null);
   const [workProgress, setWorkProgress] = useState(0);
   const [prisonTimeRemaining, setPrisonTimeRemaining] = useState(0);
+  const [latestPieces, setLatestPieces] = useState<PaintedPiece[]>([]);
+  const [hoverRatings, setHoverRatings] = useState<Record<string, number>>({});
 
   // Check if player is in prison
   const prisonUntil = localStorage.getItem('prisonUntil');
@@ -43,6 +48,9 @@ export const EnhancedHideout: React.FC = () => {
         completeWork(startTime, endTime);
       }
     }
+
+    // Load latest pieces
+    setLatestPieces(galleryService.getLatestPieces(12));
   }, []);
 
   // Update work progress and prison timer
@@ -108,6 +116,19 @@ export const EnhancedHideout: React.FC = () => {
       description: `Du hast ${moneyEarned}$ verdient!`,
       duration: 5000,
     });
+  };
+
+  const handleRating = (pieceId: string, rating: number) => {
+    const currentUserId = getCurrentUserId();
+    const success = galleryService.addUserRating(pieceId, currentUserId, rating);
+
+    if (success) {
+      // Refresh pieces to show updated ratings
+      setLatestPieces(galleryService.getLatestPieces(12));
+      toast.success(`${rating} Sterne vergeben!`);
+    } else {
+      toast.error('Du hast dieses Piece bereits bewertet!');
+    }
   };
 
   const cancelWork = () => {
@@ -333,11 +354,11 @@ export const EnhancedHideout: React.FC = () => {
       </Card>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
         {stats.map((stat) => (
           <Card
             key={stat.label}
-            className="p-6 bg-gradient-to-br from-gray-900 to-gray-800 border-2 border-primary/20 hover:border-primary/40 transition-all"
+            className="p-4 md:p-5 lg:p-6 min-h-[80px] bg-gradient-to-br from-gray-900 to-gray-800 border-2 border-primary/20 hover:border-primary/40 transition-all"
           >
             <div className="flex items-center gap-4">
               <div className={`p-3 bg-gray-950 rounded-lg ${stat.color}`}>
@@ -356,11 +377,124 @@ export const EnhancedHideout: React.FC = () => {
         ))}
       </div>
 
+      {/* Neueste Pieces */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-black uppercase tracking-wider flex items-center gap-2">
+            <SprayCan className="w-6 h-6 text-primary" />
+            Neueste Pieces
+          </h2>
+          <Button
+            onClick={() => {
+              // Switch to gallery tab
+              const galleryTab = document.querySelector('[value="gallery"]') as HTMLElement;
+              if (galleryTab) galleryTab.click();
+            }}
+            variant="outline"
+            size="sm"
+          >
+            Alle ansehen
+          </Button>
+        </div>
+
+        {latestPieces.length === 0 ? (
+          <Card className="p-8 text-center">
+            <p className="text-muted-foreground">Noch keine Pieces gemalt.</p>
+            <p className="text-sm text-muted-foreground mt-2">Male dein erstes Piece!</p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {latestPieces.map((piece) => {
+              const currentUserId = getCurrentUserId();
+              const userRating = galleryService.getUserRating(piece.id, currentUserId);
+              const hasRated = userRating !== null;
+              const stats = galleryService.getRatingStats(piece.id);
+
+              return (
+                <Card key={piece.id} className="overflow-hidden hover:border-primary/50 transition-all group">
+                  <div className="aspect-square relative">
+                    <img
+                      src={piece.imageData}
+                      alt={piece.spotName}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute bottom-0 left-0 right-0 p-2 text-white space-y-1">
+                        <div className="font-bold text-sm">{piece.spotName}</div>
+                        <div className="text-xs text-gray-300">
+                          {piece.username || 'Unbekannt'}
+                          {piece.crew && <span className="text-neon-pink"> • {piece.crew}</span>}
+                        </div>
+                        <div className="text-xs">{new Date(piece.timestamp).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-2 bg-gray-900 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <Badge className={`
+                        ${piece.difficulty === 'easy' ? 'bg-green-500/20 text-green-500' : ''}
+                        ${piece.difficulty === 'medium' ? 'bg-cyan-500/20 text-cyan-500' : ''}
+                        ${piece.difficulty === 'hard' ? 'bg-orange-500/20 text-orange-500' : ''}
+                        ${piece.difficulty === 'extreme' ? 'bg-pink-500/20 text-pink-500' : ''}
+                      `}>
+                        {piece.difficulty}
+                      </Badge>
+                      <span className="text-muted-foreground">{piece.quality}%</span>
+                    </div>
+
+                    {/* Star Rating */}
+                    <div className="flex gap-1 justify-center">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!hasRated) {
+                              handleRating(piece.id, star);
+                            }
+                          }}
+                          onMouseEnter={() => {
+                            if (!hasRated) {
+                              setHoverRatings({ ...hoverRatings, [piece.id]: star });
+                            }
+                          }}
+                          onMouseLeave={() => {
+                            setHoverRatings({ ...hoverRatings, [piece.id]: 0 });
+                          }}
+                          disabled={hasRated}
+                          className={`transition-all ${hasRated ? 'cursor-not-allowed' : 'hover:scale-110'}`}
+                        >
+                          <Star
+                            className={`w-4 h-4 ${
+                              star <= (hoverRatings[piece.id] || userRating || 0)
+                                ? 'fill-yellow-400 text-yellow-400'
+                                : 'text-gray-600'
+                            } ${hasRated ? 'opacity-70' : ''}`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Rating Stats */}
+                    {stats && (
+                      <div className="text-center text-xs text-muted-foreground">
+                        ⭐ {stats.average.toFixed(1)} ({stats.count})
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Work Dialog */}
       <Dialog open={showWorkDialog} onOpenChange={setShowWorkDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-full sm:max-w-md mx-4 sm:mx-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black uppercase flex items-center gap-2">
+            <DialogTitle className="text-xl sm:text-2xl font-black uppercase flex items-center gap-2">
               <Briefcase className="w-6 h-6 text-green-600" />
               Zur Arbeit Schicken
             </DialogTitle>
@@ -369,11 +503,11 @@ export const EnhancedHideout: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
+          <div className="space-y-6 p-4 sm:p-6">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-lg font-bold">Arbeitsdauer</span>
-                <span className="text-3xl font-black text-green-600">{workHours}h</span>
+                <span className="text-base sm:text-lg font-bold">Arbeitsdauer</span>
+                <span className="text-2xl sm:text-3xl font-black text-green-600">{workHours}h</span>
               </div>
 
               <Slider
@@ -395,7 +529,7 @@ export const EnhancedHideout: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-white">Verdienst:</span>
-                  <span className="text-green-400 font-black text-xl">${workHours * 50}</span>
+                  <span className="text-green-400 font-black text-lg sm:text-xl">${workHours * 50}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-white">Zeitraum:</span>
@@ -420,13 +554,13 @@ export const EnhancedHideout: React.FC = () => {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowWorkDialog(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-3">
+            <Button variant="outline" className="w-full sm:w-auto min-h-[48px]" onClick={() => setShowWorkDialog(false)}>
               Abbrechen
             </Button>
             <Button
               onClick={startWork}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="w-full sm:w-auto min-h-[48px] bg-green-600 hover:bg-green-700 text-white"
             >
               <Briefcase className="w-4 h-4 mr-2" />
               Arbeit Starten
@@ -437,9 +571,9 @@ export const EnhancedHideout: React.FC = () => {
 
       {/* Cancel Work Dialog */}
       <Dialog open={showCancelWorkDialog} onOpenChange={setShowCancelWorkDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-full sm:max-w-md mx-4 sm:mx-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black uppercase text-red-500 flex items-center gap-2">
+            <DialogTitle className="text-xl sm:text-2xl font-black uppercase text-red-500 flex items-center gap-2">
               <AlertTriangle className="w-6 h-6" />
               Arbeit abbrechen?
             </DialogTitle>
@@ -448,12 +582,12 @@ export const EnhancedHideout: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 p-4 sm:p-6">
             <Card className="p-4 bg-red-950/20 border-red-500/30">
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-white">Verlorenes Geld:</span>
-                  <span className="text-red-400 font-black text-xl">-${getPotentialEarnings()}</span>
+                  <span className="text-red-400 font-black text-lg sm:text-xl">-${getPotentialEarnings()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-white">Verbleibende Zeit:</span>
@@ -469,14 +603,14 @@ export const EnhancedHideout: React.FC = () => {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCancelWorkDialog(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-3">
+            <Button variant="outline" className="w-full sm:w-auto min-h-[48px]" onClick={() => setShowCancelWorkDialog(false)}>
               Weiter arbeiten
             </Button>
             <Button
               onClick={cancelWork}
               variant="destructive"
-              className="gap-2"
+              className="w-full sm:w-auto min-h-[48px] gap-2"
             >
               <X className="w-4 h-4" />
               Ja, abbrechen

@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Star, DollarSign, Shield, Camera, MapPin, Navigation, Crosshair, Crop, Check, X, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useHaptics } from '@/lib/haptics';
+import { useIsMobile } from '@/hooks/use-mobile';
 import html2canvas from 'html2canvas';
 import Cropper from 'react-easy-crop';
 import { Point, Area } from 'react-easy-crop/types';
@@ -31,12 +32,6 @@ interface EnhancedGoogleMapProps {
   onSpotSelect: (spot: CapturedSpot) => void;
   capturedSpots: CapturedSpot[];
 }
-
-const containerStyle = {
-  width: '100%',
-  height: 'calc(100vh - 200px)',
-  minHeight: '600px',
-};
 
 const streetViewStyle = {
   width: '100%',
@@ -71,6 +66,16 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
   const streetViewRef = useRef<google.maps.StreetViewPanorama | null>(null);
   const streetViewContainerRef = useRef<HTMLDivElement | null>(null);
   const { light, success } = useHaptics();
+  const isMobile = useIsMobile();
+
+  // Dynamic container style based on device
+  const containerStyle = {
+    width: '100%',
+    height: isMobile
+      ? 'calc(100vh - 180px)' // Account for header + bottom nav on mobile
+      : 'calc(100vh - 200px)',
+    minHeight: isMobile ? '500px' : '600px',
+  };
 
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
@@ -116,18 +121,19 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
           streetViewContainerRef.current,
           {
             position: streetViewPosition,
-            addressControl: true,
-            fullscreenControl: true,
+            addressControl: !isMobile, // Hide on mobile to save space
+            fullscreenControl: !isMobile, // Hide on mobile
             motionTracking: false,
             motionTrackingControl: false,
             showRoadLabels: true,
             linksControl: true,
-            panControl: true,
+            panControl: isMobile, // Show pan control on mobile for easier navigation
             zoomControl: true,
             pov: {
               heading: 0,
               pitch: 0,
             },
+            controlSize: isMobile ? 32 : 40, // Smaller controls on mobile
           }
         );
 
@@ -405,47 +411,59 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
   }
 
   return (
-    <div className="relative w-full h-full">
+    <div
+      className="relative w-full"
+      style={{
+        height: isMobile ? 'calc(100vh - 180px)' : 'calc(100vh - 200px)',
+        minHeight: isMobile ? '500px' : '600px',
+      }}
+    >
       {/* Mode Toggle */}
-      <div className="absolute top-4 right-4 z-10 flex gap-2">
+      <div className={`absolute ${isMobile ? 'top-2 right-2' : 'top-4 right-4'} z-20 flex gap-2 flex-wrap justify-end`}>
         {isStreetViewMode ? (
           <>
             <Button
               onClick={captureStreetView}
               disabled={isCapturing}
-              className="bg-primary hover:bg-primary/90 shadow-neon gap-2"
+              className={`bg-primary hover:bg-primary/90 shadow-neon gap-2 ${
+                isMobile ? 'h-12 px-4 text-sm' : 'h-10 px-4'
+              }`}
             >
-              <Camera className="w-4 h-4" />
-              {isCapturing ? 'Erfasse...' : 'Spot erfassen'}
+              <Camera className={isMobile ? 'w-5 h-5' : 'w-4 h-4'} />
+              {isCapturing ? 'Erfasse...' : isMobile ? 'Erfassen' : 'Spot erfassen'}
             </Button>
             <Button
               onClick={handleCloseStreetView}
               variant="outline"
-              className="bg-background/90 backdrop-blur"
+              className={`bg-background/90 backdrop-blur ${
+                isMobile ? 'h-12 px-4 text-sm' : 'h-10 px-4'
+              }`}
             >
-              <MapPin className="w-4 h-4 mr-2" />
-              Zur Karte
+              <MapPin className={isMobile ? 'w-5 h-5 mr-2' : 'w-4 h-4 mr-2'} />
+              {isMobile ? 'Karte' : 'Zur Karte'}
             </Button>
           </>
         ) : (
           <Button
             onClick={() => handleOpenStreetView(currentPosition)}
-            className="bg-secondary hover:bg-secondary/90 shadow-glow-cyan gap-2"
+            className={`bg-secondary hover:bg-secondary/90 shadow-glow-cyan gap-2 ${
+              isMobile ? 'h-12 px-4 text-sm' : 'h-10 px-4'
+            }`}
           >
-            <Navigation className="w-4 h-4" />
-            Street View öffnen
+            <Navigation className={isMobile ? 'w-5 h-5' : 'w-4 h-4'} />
+            {isMobile ? 'Street View' : 'Street View öffnen'}
           </Button>
         )}
       </div>
 
       {/* Info Panel */}
-      <div className="absolute top-4 left-4 z-10">
-        <Card className="p-4 bg-background/90 backdrop-blur">
-          <div className="text-sm font-bold mb-2 flex items-center gap-2">
-            <Crosshair className="w-4 h-4 text-primary" />
+      <div className={`absolute ${isMobile ? 'top-2 left-2' : 'top-4 left-4'} z-20`}>
+        <Card className={`${isMobile ? 'p-3' : 'p-4'} bg-background/90 backdrop-blur`}>
+          <div className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold mb-2 flex items-center gap-2`}>
+            <Crosshair className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} text-primary`} />
             {isStreetViewMode ? 'Street View Modus' : 'Karten Modus'}
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className={`text-xs text-muted-foreground ${isMobile ? 'hidden sm:block' : ''}`}>
             {isStreetViewMode ? (
               'Navigiere zu einem Ort und erfasse ihn als Spot'
             ) : (
@@ -513,11 +531,11 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
             position={currentPosition}
             icon={{
               path: google.maps.SymbolPath.CIRCLE,
-              scale: 10,
+              scale: isMobile ? 12 : 10,
               fillColor: '#22d3ee',
               fillOpacity: 1,
               strokeColor: '#ffffff',
-              strokeWeight: 3,
+              strokeWeight: isMobile ? 4 : 3,
             }}
             title="Deine Position"
           />
@@ -530,11 +548,11 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
               onClick={() => handleMarkerClick(spot)}
               icon={{
                 path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
-                scale: 6,
+                scale: isMobile ? 8 : 6,
                 fillColor: getDifficultyColor(spot.difficulty),
                 fillOpacity: 1,
                 strokeColor: '#ffffff',
-                strokeWeight: 2,
+                strokeWeight: isMobile ? 3 : 2,
                 rotation: spot.heading,
               }}
             />
@@ -546,9 +564,9 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
               position={selectedSpot.position}
               onCloseClick={() => setSelectedSpot(null)}
             >
-              <div className="p-2 min-w-[250px]">
+              <div className={`p-2 ${isMobile ? 'min-w-[200px]' : 'min-w-[250px]'}`}>
                 <div className="mb-3">
-                  <h3 className="font-black text-lg uppercase mb-1 text-gray-900">
+                  <h3 className={`font-black ${isMobile ? 'text-base' : 'text-lg'} uppercase mb-1 text-gray-900`}>
                     {selectedSpot.name}
                   </h3>
                   <div className={`inline-block px-2 py-1 rounded text-xs font-bold text-white ${
@@ -567,9 +585,9 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
 
                 <button
                   onClick={() => handlePaintSpot(selectedSpot)}
-                  className="w-full px-3 py-2 bg-pink-600 hover:bg-pink-700 text-white text-sm font-bold rounded flex items-center justify-center gap-2"
+                  className={`w-full px-3 ${isMobile ? 'py-3 min-h-[48px]' : 'py-2'} bg-pink-600 hover:bg-pink-700 text-white text-sm font-bold rounded flex items-center justify-center gap-2 touch-manipulation`}
                 >
-                  <Camera className="w-4 h-4" />
+                  <Camera className={isMobile ? 'w-5 h-5' : 'w-4 h-4'} />
                   Jetzt malen
                 </button>
               </div>
@@ -584,33 +602,35 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
           ref={streetViewContainerRef}
           style={{
             width: '100%',
-            height: '100%',
+            height: isMobile ? 'calc(100vh - 180px)' : 'calc(100vh - 200px)',
+            minHeight: isMobile ? '500px' : '600px',
             position: 'absolute',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
+            zIndex: 10,
           }}
         />
       )}
 
       {/* Crop Dialog */}
       <Dialog open={showCropDialog} onOpenChange={setShowCropDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+        <DialogContent className={`${isMobile ? 'max-w-full h-full' : 'sm:max-w-4xl'} max-h-[95vh] overflow-auto`}>
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black uppercase flex items-center gap-2">
-              <Crop className="w-6 h-6 text-primary" />
-              Spot Zuschneiden & Konfigurieren
+            <DialogTitle className={`${isMobile ? 'text-xl' : 'text-2xl'} font-black uppercase flex items-center gap-2`}>
+              <Crop className={`${isMobile ? 'w-5 h-5' : 'w-6 h-6'} text-primary`} />
+              {isMobile ? 'Spot konfigurieren' : 'Spot Zuschneiden & Konfigurieren'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className={isMobile ? 'text-xs' : ''}>
               Schneide den Screenshot zu und konfiguriere den Spot
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6">
+          <div className={`${isMobile ? 'space-y-4' : 'space-y-6'}`}>
             {/* Crop Area */}
             {capturedImage && (
-              <div className="relative w-full h-[400px] bg-black rounded-lg overflow-hidden">
+              <div className={`relative w-full ${isMobile ? 'h-[250px]' : 'h-[400px]'} bg-black rounded-lg overflow-hidden`}>
                 <Cropper
                   image={capturedImage}
                   crop={crop}
@@ -625,20 +645,20 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
 
             {/* Zoom Control */}
             <div className="space-y-2">
-              <Label className="text-sm font-bold uppercase">Zoom</Label>
+              <Label className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold uppercase`}>Zoom</Label>
               <Slider
                 value={[zoom]}
                 onValueChange={([value]) => setZoom(value)}
                 min={1}
                 max={3}
                 step={0.1}
-                className="w-full"
+                className={`w-full ${isMobile ? 'h-10' : ''}`}
               />
             </div>
 
             {/* Spot Name */}
             <div className="space-y-2">
-              <Label htmlFor="spotName" className="text-sm font-bold uppercase">
+              <Label htmlFor="spotName" className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold uppercase`}>
                 Spot Name *
               </Label>
               <Input
@@ -646,13 +666,13 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
                 value={spotName}
                 onChange={(e) => setSpotName(e.target.value)}
                 placeholder="z.B. East Side Gallery, Hauptbahnhof..."
-                className="font-mono"
+                className={`font-mono ${isMobile ? 'h-12 text-base' : ''}`}
               />
             </div>
 
             {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="spotDescription" className="text-sm font-bold uppercase">
+              <Label htmlFor="spotDescription" className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold uppercase`}>
                 Beschreibung (Optional)
               </Label>
               <Textarea
@@ -660,15 +680,16 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
                 value={spotDescription}
                 onChange={(e) => setSpotDescription(e.target.value)}
                 placeholder="Besonderheiten, Tipps, Zugänglichkeit..."
-                rows={3}
+                rows={isMobile ? 2 : 3}
+                className={isMobile ? 'text-base' : ''}
               />
             </div>
 
             {/* Risk Level */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-bold uppercase">Risiko Level</Label>
-                <div className="text-2xl font-black">
+                <Label className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold uppercase`}>Risiko Level</Label>
+                <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-black`}>
                   <span className={
                     riskLevel <= 3 ? 'text-neon-lime' :
                     riskLevel <= 6 ? 'text-neon-cyan' :
@@ -685,9 +706,9 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
                 min={1}
                 max={10}
                 step={1}
-                className="w-full"
+                className={`w-full ${isMobile ? 'h-10' : ''}`}
               />
-              <div className="flex justify-between text-xs text-muted-foreground">
+              <div className={`flex justify-between ${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground`}>
                 <span>🟢 Easy</span>
                 <span>🟡 Medium</span>
                 <span>🟠 Hard</span>
@@ -696,21 +717,21 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
             </div>
           </div>
 
-          <DialogFooter className="flex gap-2">
+          <DialogFooter className={`${isMobile ? 'flex-col gap-2' : 'flex gap-2'}`}>
             <Button
               variant="outline"
               onClick={handleCancelCrop}
-              className="gap-2"
+              className={`gap-2 ${isMobile ? 'w-full h-12 min-h-[48px]' : ''}`}
             >
-              <X className="w-4 h-4" />
+              <X className={isMobile ? 'w-5 h-5' : 'w-4 h-4'} />
               Abbrechen
             </Button>
             <Button
               onClick={handleCropConfirm}
               disabled={!spotName.trim()}
-              className="gap-2 bg-primary hover:bg-primary/90"
+              className={`gap-2 bg-primary hover:bg-primary/90 ${isMobile ? 'w-full h-12 min-h-[48px]' : ''}`}
             >
-              <Check className="w-4 h-4" />
+              <Check className={isMobile ? 'w-5 h-5' : 'w-4 h-4'} />
               Spot erstellen
             </Button>
           </DialogFooter>
@@ -719,19 +740,19 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
 
       {/* Start Spot Warning Dialog */}
       <Dialog open={showStartSpotDialog} onOpenChange={setShowStartSpotDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className={isMobile ? 'max-w-full' : 'sm:max-w-md'}>
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black uppercase text-orange-500 flex items-center gap-2">
-              <AlertTriangle className="w-6 h-6" />
+            <DialogTitle className={`${isMobile ? 'text-xl' : 'text-2xl'} font-black uppercase text-orange-500 flex items-center gap-2`}>
+              <AlertTriangle className={isMobile ? 'w-5 h-5' : 'w-6 h-6'} />
               ⚠️ WARNUNG
             </DialogTitle>
-            <DialogDescription className="text-base pt-4">
+            <DialogDescription className={`${isMobile ? 'text-sm' : 'text-base'} pt-4`}>
               Sobald Sie den Spot betreten, gibt es kein Zurück mehr!
               <br /><br />
               Wollen Sie den Spot jetzt beginnen?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-2">
+          <DialogFooter className={`${isMobile ? 'flex-col gap-2' : 'flex gap-2 sm:gap-2'}`}>
             <Button
               variant="outline"
               onClick={() => {
@@ -743,24 +764,24 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
                 setSpotDescription('');
                 setRiskLevel(5);
               }}
-              className="gap-2"
+              className={`gap-2 ${isMobile ? 'w-full h-12 min-h-[48px]' : ''}`}
             >
-              <MapPin className="w-4 h-4" />
+              <MapPin className={isMobile ? 'w-5 h-5' : 'w-4 h-4'} />
               Zurück zur Karte
             </Button>
             <Button
               variant="outline"
               onClick={() => setShowStartSpotDialog(false)}
-              className="gap-2"
+              className={`gap-2 ${isMobile ? 'w-full h-12 min-h-[48px]' : ''}`}
             >
-              <X className="w-4 h-4" />
+              <X className={isMobile ? 'w-5 h-5' : 'w-4 h-4'} />
               Nein
             </Button>
             <Button
               onClick={createCroppedImage}
-              className="gap-2 bg-green-600 hover:bg-green-700"
+              className={`gap-2 bg-green-600 hover:bg-green-700 ${isMobile ? 'w-full h-12 min-h-[48px]' : ''}`}
             >
-              <Check className="w-4 h-4" />
+              <Check className={isMobile ? 'w-5 h-5' : 'w-4 h-4'} />
               Ja, Spot starten!
             </Button>
           </DialogFooter>
@@ -769,33 +790,33 @@ export const EnhancedGoogleMap: React.FC<EnhancedGoogleMapProps> = ({
 
       {/* Cancel Confirmation Dialog */}
       <Dialog open={showCancelConfirmDialog} onOpenChange={setShowCancelConfirmDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className={isMobile ? 'max-w-full' : 'sm:max-w-md'}>
           <DialogHeader>
-            <DialogTitle className="text-xl font-black uppercase flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-yellow-500" />
+            <DialogTitle className={`${isMobile ? 'text-lg' : 'text-xl'} font-black uppercase flex items-center gap-2`}>
+              <AlertTriangle className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-yellow-500`} />
               Änderungen verwerfen?
             </DialogTitle>
-            <DialogDescription className="text-base pt-2">
+            <DialogDescription className={`${isMobile ? 'text-sm' : 'text-base'} pt-2`}>
               Sind Sie sich sicher, dass Sie verlassen wollen ohne zu speichern?
               <br />
               <span className="text-destructive font-bold">Alle Änderungen gehen verloren!</span>
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-2">
+          <DialogFooter className={`${isMobile ? 'flex-col gap-2' : 'flex gap-2 sm:gap-2'}`}>
             <Button
               variant="outline"
               onClick={() => setShowCancelConfirmDialog(false)}
-              className="gap-2"
+              className={`gap-2 ${isMobile ? 'w-full h-12 min-h-[48px]' : ''}`}
             >
-              <X className="w-4 h-4" />
+              <X className={isMobile ? 'w-5 h-5' : 'w-4 h-4'} />
               Zurück
             </Button>
             <Button
               onClick={confirmCancelCrop}
               variant="destructive"
-              className="gap-2"
+              className={`gap-2 ${isMobile ? 'w-full h-12 min-h-[48px]' : ''}`}
             >
-              <Check className="w-4 h-4" />
+              <Check className={isMobile ? 'w-5 h-5' : 'w-4 h-4'} />
               Ja, verwerfen
             </Button>
           </DialogFooter>

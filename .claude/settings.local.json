@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xcopy \"C:\\Users\\Rudik\\Desktop\\cancontroll - CLON BETA 19.10 06.22 - Copy\\cancontroll\\src\\pages\\SpotCapture.tsx\" \"C:\\Users\\Rudik\\Desktop\\cancontroll\\src\\pages\"\" /Y)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npm run build:*)",
+      "Read(//c/Users/Rudik/Downloads/**)"
     ],
     "deny": [],
     "ask": []

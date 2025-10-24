@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase, PlayerProfile } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { setCurrentUser, clearCurrentUser } from '@/lib/userHelper';
 
 interface AuthContextType {
   user: User | null;
@@ -43,6 +44,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
       setProfile(data);
+
+      // Save user info to localStorage for gallery and other features
+      if (data) {
+        setCurrentUser({
+          id: data.user_id,
+          username: data.username,
+          crew: undefined, // TODO: Add crew field to database
+        });
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
@@ -128,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setProfile(null);
+      clearCurrentUser(); // Clear localStorage user data
       toast.success('Erfolgreich abgemeldet');
     } catch (error) {
       console.error('Error signing out:', error);

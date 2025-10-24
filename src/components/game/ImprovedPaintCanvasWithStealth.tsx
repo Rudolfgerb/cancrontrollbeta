@@ -3,11 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
   SprayCan, Paintbrush, Circle, Check, X, ZoomIn, ZoomOut,
-  Undo, Redo, Eye, EyeOff, AlertTriangle, UserX
+  Undo, Redo, Eye, EyeOff, AlertTriangle, UserX, Menu
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface BrushStroke {
   id: string;
@@ -52,6 +54,7 @@ export const ImprovedPaintCanvasWithStealth: React.FC<ImprovedPaintCanvasWithSte
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [strokes, setStrokes] = useState<BrushStroke[]>([]);
   const [currentStroke, setCurrentStroke] = useState<BrushStroke | null>(null);
@@ -65,6 +68,8 @@ export const ImprovedPaintCanvasWithStealth: React.FC<ImprovedPaintCanvasWithSte
   const [density, setDensity] = useState(0.7);
   const [dimensions, setDimensions] = useState({ width: 1200, height: 900 });
   const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null);
+  const [showToolbar, setShowToolbar] = useState(false);
+  const isMobile = useIsMobile();
 
   // Stealth System
   const [stealth, setStealth] = useState(100);
@@ -113,58 +118,97 @@ export const ImprovedPaintCanvasWithStealth: React.FC<ImprovedPaintCanvasWithSte
     img.src = backgroundImage;
   }, [backgroundImage]);
 
-  // Step 2: When the image object is ready, update canvases
+  // Step 2: Responsive canvas sizing based on viewport
   useEffect(() => {
-    const newWidth = bgImage?.width ?? 1200;
-    const newHeight = bgImage?.height ?? 900;
-    setDimensions({ width: newWidth, height: newHeight });
+    const updateDimensions = () => {
+      // Use window dimensions directly for more reliable sizing
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
 
-    // Set drawing canvas resolution
-    if (canvasRef.current) {
-      canvasRef.current.width = newWidth;
-      canvasRef.current.height = newHeight;
-    }
+      // Calculate available space - FULLSCREEN!
+      const maxWidth = isMobile
+        ? viewportWidth  // Mobile: FULL WIDTH
+        : viewportWidth; // Desktop: FULL WIDTH
 
-    // Set background canvas resolution and draw the image
-    const bgCanvas = backgroundCanvasRef.current;
-    if (bgCanvas) {
-      bgCanvas.width = newWidth;
-      bgCanvas.height = newHeight;
-      const ctx = bgCanvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, newWidth, newHeight);
-        if (bgImage) {
-          console.log('✍️ Drawing background image to canvas');
-          ctx.drawImage(bgImage, 0, 0, newWidth, newHeight);
-        } else {
-          // Fallback to dark background if image failed
-          ctx.fillStyle = '#1a1a1a';
-          ctx.fillRect(0, 0, newWidth, newHeight);
+      const maxHeight = isMobile
+        ? viewportHeight - 100 // Mobile: just tiny space for stealth bar
+        : viewportHeight - 100; // Desktop: just tiny space for stealth bar
+
+      let width = bgImage?.width ?? 1200;
+      let height = bgImage?.height ?? 900;
+
+      // Scale to fit maintaining aspect ratio
+      const aspectRatio = width / height;
+      if (width > maxWidth) {
+        width = maxWidth;
+        height = width / aspectRatio;
+      }
+      if (height > maxHeight) {
+        height = maxHeight;
+        width = height * aspectRatio;
+      }
+
+      const finalWidth = Math.floor(width);
+      const finalHeight = Math.floor(height);
+
+      console.log('Canvas dimensions:', {
+        viewport: { width: viewportWidth, height: viewportHeight },
+        max: { width: maxWidth, height: maxHeight },
+        final: { width: finalWidth, height: finalHeight },
+        isMobile
+      });
+
+      setDimensions({ width: finalWidth, height: finalHeight });
+
+      // Set drawing canvas resolution
+      if (canvasRef.current) {
+        canvasRef.current.width = finalWidth;
+        canvasRef.current.height = finalHeight;
+      }
+
+      // Set background canvas resolution and draw the image
+      const bgCanvas = backgroundCanvasRef.current;
+      if (bgCanvas) {
+        bgCanvas.width = finalWidth;
+        bgCanvas.height = finalHeight;
+        const ctx = bgCanvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, finalWidth, finalHeight);
+          if (bgImage) {
+            console.log('✍️ Drawing background image to canvas');
+            ctx.drawImage(bgImage, 0, 0, finalWidth, finalHeight);
+          } else {
+            // Fallback to dark background if image failed
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, finalWidth, finalHeight);
+          }
         }
       }
-    }
-  }, [bgImage]);
+    };
 
-  // Stealth Drain System
-  // SUPER ULTRA SLOW drain rates - gaaaaanz langsam!
-  // Normal drain is VERY minimal, only increases significantly when pedestrian spots you
-  // Easy (0.3): ~30-40 minutes normal, ~5-8 minutes if spotted
-  // Medium (0.5): ~20-25 minutes normal, ~4-6 minutes if spotted
-  // Hard (0.7): ~15-18 minutes normal, ~3-5 minutes if spotted
-  // Extreme (1.0): ~10-15 minutes normal, ~2-3 minutes if spotted
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, [bgImage, isMobile]);
+
+  // Stealth Drain System - FASTER drain for more excitement
+  // Easy (0.3): ~3-5 minutes
+  // Medium (0.5): ~2-3 minutes
+  // Hard (0.7): ~1-2 minutes
+  // Extreme (1.0): ~30-60 seconds
   useEffect(() => {
     if (!isPainting) return;
 
     const drainInterval = setInterval(() => {
-      // GAAAAANZ LANGSAM - barely drains unless spotted
-      // Normal base drain when drawing: 0.0015 per 100ms = 0.015 per second = 0.9 per minute (very slow!)
-      // Normal base drain when idle: 0.0005 per 100ms = 0.005 per second = 0.3 per minute (super slow!)
-      // IF PEDESTRIAN NEARBY: 0.015 per 100ms = 0.15 per second = 9 per minute (much faster!)
-      let baseDrainRate = isDrawing ? 0.0015 : 0.0005;
+      // FASTER drain rates - more challenging!
+      // Normal base drain when drawing: 0.03 per 100ms = 0.3 per second = 18 per minute
+      // Normal base drain when idle: 0.015 per 100ms = 0.15 per second = 9 per minute
+      // IF PEDESTRIAN NEARBY: 0.06 per 100ms = 0.6 per second = 36 per minute (very fast!)
+      let baseDrainRate = isDrawing ? 0.03 : 0.015;
 
       // If pedestrian spotted you, drain MUCH faster!
       if (isPedestrianNearby) {
-        baseDrainRate = 0.015; // 10x faster when spotted!
+        baseDrainRate = 0.06; // 2x faster when spotted!
       }
 
       const drainRate = baseDrainRate * difficultyMultiplier;
@@ -180,11 +224,8 @@ export const ImprovedPaintCanvasWithStealth: React.FC<ImprovedPaintCanvasWithSte
         return newStealth;
       });
 
-      // Recover stealth when looking around - fills up COMPLETELY instantly
-      if (isLookingAround) {
-        setStealth(100); // Instant full stealth when looking around
-        setLastLookTime(Date.now());
-      }
+      // Note: Look Around button now sets stealth to 100 directly
+      // No need to check isLookingAround here
 
       // Check if player hasn't looked around in a while
       const timeSinceLastLook = Date.now() - lastLookTime;
@@ -221,12 +262,16 @@ export const ImprovedPaintCanvasWithStealth: React.FC<ImprovedPaintCanvasWithSte
     setShowPoliceQTE(true);
     playPoliceEffects();
 
-    // Generate QTE targets
+    // Generate QTE targets - mobile optimized positioning
     const targets = [];
+    const isMobileDevice = window.innerWidth < 768;
+    const margin = isMobileDevice ? 15 : 10; // More margin on mobile
+    const maxPosition = 100 - margin * 2;
+
     for (let i = 0; i < 2; i++) {
       targets.push({
-        x: Math.random() * 80 + 10, // 10-90% of screen
-        y: Math.random() * 80 + 10,
+        x: Math.random() * maxPosition + margin, // Avoid edges
+        y: Math.random() * maxPosition + margin,
         active: i === 0, // First one active
       });
     }
@@ -434,6 +479,18 @@ export const ImprovedPaintCanvasWithStealth: React.FC<ImprovedPaintCanvasWithSte
     ctx.restore();
   };
 
+  const getTouchPoint = (touch: Touch) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width / zoom;
+    const scaleY = canvas.height / rect.height / zoom;
+    return {
+      x: (touch.clientX - rect.left) * scaleX,
+      y: (touch.clientY - rect.top) * scaleY,
+    };
+  };
+
   const getCanvasPoint = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
@@ -502,6 +559,51 @@ export const ImprovedPaintCanvasWithStealth: React.FC<ImprovedPaintCanvasWithSte
 
     setIsDrawing(false);
     setCurrentStroke(null);
+  };
+
+  // Touch-specific handlers with preventDefault
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    if (!isPainting || e.touches.length === 0) return;
+
+    const touch = e.touches[0];
+    const point = getTouchPoint(touch);
+
+    setIsDrawing(true);
+    const newStroke: BrushStroke = {
+      id: `stroke-${Date.now()}`,
+      points: [point],
+      color: selectedColor,
+      size: brushSize,
+      opacity,
+      brushType,
+      timestamp: Date.now(),
+    };
+    setCurrentStroke(newStroke);
+    setUndoneStrokes([]);
+
+    // Haptic feedback on touch devices
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault();
+    if (!isDrawing || !currentStroke || !isPainting || e.touches.length === 0) return;
+
+    const touch = e.touches[0];
+    const point = getTouchPoint(touch);
+
+    setCurrentStroke(prev => prev ? {
+      ...prev,
+      points: [...prev.points, point],
+    } : null);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
+    stopDrawing();
   };
 
   const handleUndo = () => {
@@ -581,6 +683,128 @@ export const ImprovedPaintCanvasWithStealth: React.FC<ImprovedPaintCanvasWithSte
     }, 1000);
   };
 
+  // Toolbar Content Component (reusable for desktop sidebar and mobile sheet)
+  const ToolbarContent = () => (
+    <>
+      {/* Top Actions */}
+      <div className={`flex gap-2 ${isMobile ? 'flex-row' : ''}`}>
+        <Button onClick={handleUndo} disabled={strokes.length === 0} size={isMobile ? 'default' : 'sm'} variant="outline" className="flex-1 bg-black/60 min-h-[44px]">
+          <Undo className="w-4 h-4" />
+        </Button>
+        <Button onClick={handleRedo} disabled={undoneStrokes.length === 0} size={isMobile ? 'default' : 'sm'} variant="outline" className="flex-1 bg-black/60 min-h-[44px]">
+          <Redo className="w-4 h-4" />
+        </Button>
+      </div>
+
+      <div className={`flex gap-2 ${isMobile ? 'flex-row' : ''}`}>
+        <Button onClick={() => setZoom(prev => Math.max(prev - 0.25, 0.5))} size={isMobile ? 'default' : 'sm'} variant="outline" className="flex-1 bg-black/60 min-h-[44px]">
+          <ZoomOut className="w-4 h-4" />
+        </Button>
+        <span className="text-sm text-white self-center px-2">{Math.round(zoom * 100)}%</span>
+        <Button onClick={() => setZoom(prev => Math.min(prev + 0.25, 3))} size={isMobile ? 'default' : 'sm'} variant="outline" className="flex-1 bg-black/60 min-h-[44px]">
+          <ZoomIn className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Brush Types */}
+      <div className="space-y-2">
+        <span className="text-xs text-white/70 uppercase">Brush</span>
+        <div className="grid grid-cols-3 gap-2">
+          <Button
+            onClick={() => setBrushType('spray')}
+            variant={brushType === 'spray' ? 'default' : 'outline'}
+            size={isMobile ? 'default' : 'sm'}
+            className="bg-black/60 min-h-[44px]"
+          >
+            <SprayCan className="w-4 h-4" />
+          </Button>
+          <Button
+            onClick={() => setBrushType('brush')}
+            variant={brushType === 'brush' ? 'default' : 'outline'}
+            size={isMobile ? 'default' : 'sm'}
+            className="bg-black/60 min-h-[44px]"
+          >
+            <Paintbrush className="w-4 h-4" />
+          </Button>
+          <Button
+            onClick={() => setBrushType('marker')}
+            variant={brushType === 'marker' ? 'default' : 'outline'}
+            size={isMobile ? 'default' : 'sm'}
+            className="bg-black/60 min-h-[44px]"
+          >
+            <Circle className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Colors */}
+      <div className="space-y-2">
+        <span className="text-xs text-white/70 uppercase">Colors</span>
+        <div className={`${isMobile ? 'flex gap-2 overflow-x-auto pb-2' : 'grid grid-cols-5 gap-2'}`}>
+          {COLORS.map(color => (
+            <button
+              key={color.id}
+              type="button"
+              onClick={() => setSelectedColor(color.value)}
+              className={`${isMobile ? 'min-w-[44px] w-11 h-11' : 'w-10 h-10'} rounded-full border-4 transition-all cursor-pointer hover:scale-110 ${
+                selectedColor === color.value ? 'border-white ring-2 ring-primary' : 'border-gray-600'
+              }`}
+              style={{ backgroundColor: color.value }}
+              title={color.name}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Sliders */}
+      <div className="space-y-3">
+        <div>
+          <div className="flex justify-between mb-1">
+            <span className="text-xs text-white/70">Size</span>
+            <span className="text-xs text-white">{brushSize}px</span>
+          </div>
+          <Slider value={[brushSize]} onValueChange={([v]) => setBrushSize(v)} min={5} max={50} step={1} />
+        </div>
+
+        <div>
+          <div className="flex justify-between mb-1">
+            <span className="text-xs text-white/70">Opacity</span>
+            <span className="text-xs text-white">{Math.round(opacity * 100)}%</span>
+          </div>
+          <Slider value={[opacity * 100]} onValueChange={([v]) => setOpacity(v / 100)} min={10} max={100} step={10} />
+        </div>
+
+        <div>
+          <div className="flex justify-between mb-1">
+            <span className="text-xs text-white/70">Flow</span>
+            <span className="text-xs text-white">{Math.round(flow * 100)}%</span>
+          </div>
+          <Slider value={[flow * 100]} onValueChange={([v]) => setFlow(v / 100)} min={10} max={100} step={10} />
+        </div>
+
+        <div>
+          <div className="flex justify-between mb-1">
+            <span className="text-xs text-white/70">Density</span>
+            <span className="text-xs text-white">{Math.round(density * 100)}%</span>
+          </div>
+          <Slider value={[density * 100]} onValueChange={([v]) => setDensity(v / 100)} min={30} max={100} step={10} />
+        </div>
+      </div>
+
+      {/* Bottom Actions */}
+      <div className="space-y-2 pt-4 border-t border-white/10">
+        <Button onClick={handleComplete} className="w-full bg-green-600 hover:bg-green-700 gap-2 min-h-[44px]">
+          <Check className="w-4 h-4" />
+          Fertig
+        </Button>
+        <Button onClick={handleCancelAttempt} variant="destructive" className="w-full gap-2 min-h-[44px]">
+          <X className="w-4 h-4" />
+          Abbrechen
+        </Button>
+      </div>
+    </>
+  );
+
   return (
     <Dialog open={true} onOpenChange={() => {}}>
       <DialogContent className="max-w-[98vw] max-h-[98vh] p-0 overflow-hidden bg-transparent border-none">
@@ -642,10 +866,10 @@ export const ImprovedPaintCanvasWithStealth: React.FC<ImprovedPaintCanvasWithSte
           )}
 
           {/* Main Canvas Area */}
-          <div className="flex-1 relative bg-gray-950">
-            {/* Top Stealth Bar */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 w-96">
-              <div className={`bg-black/60 backdrop-blur-md p-3 rounded-lg border ${
+          <div ref={containerRef} className="flex-1 relative bg-gray-950">
+            {/* Compact Stealth Bar - Top */}
+            <div className="absolute top-0 left-0 right-0 z-30">
+              <div className={`bg-black/80 backdrop-blur-md px-3 py-1.5 border-b ${
                 stealth <= 20 ? 'border-red-500 animate-pulse' : 'border-white/20'
               }`}>
                 <div className="flex items-center justify-between mb-2">
@@ -676,25 +900,24 @@ export const ImprovedPaintCanvasWithStealth: React.FC<ImprovedPaintCanvasWithSte
               </div>
             </div>
 
-            {/* Look Around Button */}
-            <div className="absolute top-4 right-4 z-30">
+            {/* Look Around Button - Compact in top bar */}
+            <div className="absolute top-2 right-2 z-40">
               <Button
-                onMouseDown={() => setIsLookingAround(true)}
+                onMouseDown={() => { setIsLookingAround(true); setStealth(100); }}
                 onMouseUp={() => setIsLookingAround(false)}
                 onMouseLeave={() => setIsLookingAround(false)}
-                onTouchStart={() => setIsLookingAround(true)}
-                onTouchEnd={() => setIsLookingAround(false)}
-                className={`gap-2 ${isLookingAround ? 'bg-green-600' : 'bg-black/60 backdrop-blur-md'} border border-white/20`}
-                size="lg"
+                onTouchStart={(e) => { e.preventDefault(); setIsLookingAround(true); setStealth(100); }}
+                onTouchEnd={(e) => { e.preventDefault(); setIsLookingAround(false); }}
+                className={`${isLookingAround ? 'bg-green-600' : 'bg-black/80 backdrop-blur-md'} border border-white/20 min-h-[40px] min-w-[40px] p-2`}
+                size="sm"
               >
-                {isLookingAround ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-                {isLookingAround ? 'Schaust dich um...' : 'Umschauen'}
+                {isLookingAround ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </Button>
             </div>
 
             {/* Pedestrian Warning */}
             {showPedestrianWarning && (
-              <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-40">
+              <div className={`absolute ${isMobile ? 'top-20 left-2 right-2' : 'top-24 left-1/2 transform -translate-x-1/2'} z-40`}>
                 <div className="bg-orange-600/90 backdrop-blur-md p-4 rounded-lg border-2 border-orange-400 animate-pulse">
                   <div className="flex items-center gap-3">
                     <AlertTriangle className="w-6 h-6 text-white" />
@@ -706,13 +929,14 @@ export const ImprovedPaintCanvasWithStealth: React.FC<ImprovedPaintCanvasWithSte
 
             {/* Canvas */}
             <div
-              className="w-full h-full flex items-center justify-center overflow-auto"
+              className={`w-full h-full flex items-center justify-center ${isMobile ? 'pb-4' : ''}`}
               style={{
                 transform: `scale(${zoom})`,
                 transformOrigin: 'center',
               }}
             >
-              <div className="relative" style={{ width: `${dimensions.width}px`, height: `${dimensions.height}px` }}>
+              <div className="relative w-full h-full max-w-full max-h-full flex items-center justify-center">
+              <div className="relative" style={{ width: `${dimensions.width}px`, height: `${dimensions.height}px`, maxWidth: '100%', maxHeight: '100%' }}>
                 <canvas
                   ref={backgroundCanvasRef}
                   className="absolute top-0 left-0"
@@ -720,139 +944,57 @@ export const ImprovedPaintCanvasWithStealth: React.FC<ImprovedPaintCanvasWithSte
                 />
                 <canvas
                   ref={canvasRef}
-                  className="absolute top-0 left-0 cursor-crosshair"
+                  className="absolute top-0 left-0 cursor-crosshair w-full h-full touch-none"
                   style={{ zIndex: 2, touchAction: 'none' }}
                   onMouseDown={(e) => { e.preventDefault(); startDrawing(e); }}
                   onMouseMove={(e) => { e.preventDefault(); draw(e); }}
                   onMouseUp={(e) => { e.preventDefault(); stopDrawing(); }}
                   onMouseLeave={(e) => { e.preventDefault(); if (isDrawing) stopDrawing(); }}
-                  onTouchStart={(e) => { e.preventDefault(); startDrawing(e); }}
-                  onTouchMove={(e) => { e.preventDefault(); draw(e); }}
-                  onTouchEnd={(e) => { e.preventDefault(); stopDrawing(); }}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
                 />
               </div>
+              </div>
             </div>
+
+            {/* Mobile: Toolbar Toggle Button with Pulsing Animation */}
+            {isMobile && (
+              <div className="absolute bottom-4 right-4 z-30">
+                <Button
+                  onClick={() => {
+                    setShowToolbar(true);
+                    localStorage.setItem('toolbarOpened', 'true');
+                  }}
+                  className={`bg-primary hover:bg-primary/90 gap-2 min-h-[56px] min-w-[56px] rounded-full shadow-lg ${
+                    !localStorage.getItem('toolbarOpened') ? 'animate-pulse shadow-[0_0_20px_rgba(236,72,153,0.6)]' : ''
+                  }`}
+                  size="lg"
+                >
+                  <Menu className="w-6 h-6" />
+                </Button>
+              </div>
+            )}
           </div>
 
-          {/* Side Toolbar - Transparent */}
-          <div className="w-80 bg-black/40 backdrop-blur-xl border-l border-white/10 p-4 space-y-4 overflow-y-auto">
-            {/* Top Actions */}
-            <div className="flex gap-2">
-              <Button onClick={handleUndo} disabled={strokes.length === 0} size="sm" variant="outline" className="flex-1 bg-black/60">
-                <Undo className="w-4 h-4" />
-              </Button>
-              <Button onClick={handleRedo} disabled={undoneStrokes.length === 0} size="sm" variant="outline" className="flex-1 bg-black/60">
-                <Redo className="w-4 h-4" />
-              </Button>
+          {/* Desktop Side Toolbar */}
+          {!isMobile && (
+            <div className="w-80 bg-black/40 backdrop-blur-xl border-l border-white/10 p-4 space-y-4 overflow-y-auto">
+              <ToolbarContent />
             </div>
+          )}
 
-            <div className="flex gap-2">
-              <Button onClick={() => setZoom(prev => Math.max(prev - 0.25, 0.5))} size="sm" variant="outline" className="flex-1 bg-black/60">
-                <ZoomOut className="w-4 h-4" />
-              </Button>
-              <span className="text-sm text-white self-center">{Math.round(zoom * 100)}%</span>
-              <Button onClick={() => setZoom(prev => Math.min(prev + 0.25, 3))} size="sm" variant="outline" className="flex-1 bg-black/60">
-                <ZoomIn className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Brush Types */}
-            <div className="space-y-2">
-              <span className="text-xs text-white/70 uppercase">Brush</span>
-              <div className="grid grid-cols-3 gap-2">
-                <Button
-                  onClick={() => setBrushType('spray')}
-                  variant={brushType === 'spray' ? 'default' : 'outline'}
-                  size="sm"
-                  className="bg-black/60"
-                >
-                  <SprayCan className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={() => setBrushType('brush')}
-                  variant={brushType === 'brush' ? 'default' : 'outline'}
-                  size="sm"
-                  className="bg-black/60"
-                >
-                  <Paintbrush className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={() => setBrushType('marker')}
-                  variant={brushType === 'marker' ? 'default' : 'outline'}
-                  size="sm"
-                  className="bg-black/60"
-                >
-                  <Circle className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Colors */}
-            <div className="space-y-2">
-              <span className="text-xs text-white/70 uppercase">Colors</span>
-              <div className="grid grid-cols-5 gap-2">
-                {COLORS.map(color => (
-                  <button
-                    key={color.id}
-                    type="button"
-                    onClick={() => setSelectedColor(color.value)}
-                    className={`w-10 h-10 rounded-full border-4 transition-all cursor-pointer hover:scale-110 ${
-                      selectedColor === color.value ? 'border-white ring-2 ring-primary' : 'border-gray-600'
-                    }`}
-                    style={{ backgroundColor: color.value }}
-                    title={color.name}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Sliders */}
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-xs text-white/70">Size</span>
-                  <span className="text-xs text-white">{brushSize}px</span>
-                </div>
-                <Slider value={[brushSize]} onValueChange={([v]) => setBrushSize(v)} min={5} max={50} step={1} />
-              </div>
-
-              <div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-xs text-white/70">Opacity</span>
-                  <span className="text-xs text-white">{Math.round(opacity * 100)}%</span>
-                </div>
-                <Slider value={[opacity * 100]} onValueChange={([v]) => setOpacity(v / 100)} min={10} max={100} step={10} />
-              </div>
-
-              <div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-xs text-white/70">Flow</span>
-                  <span className="text-xs text-white">{Math.round(flow * 100)}%</span>
-                </div>
-                <Slider value={[flow * 100]} onValueChange={([v]) => setFlow(v / 100)} min={10} max={100} step={10} />
-              </div>
-
-              <div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-xs text-white/70">Density</span>
-                  <span className="text-xs text-white">{Math.round(density * 100)}%</span>
-                </div>
-                <Slider value={[density * 100]} onValueChange={([v]) => setDensity(v / 100)} min={30} max={100} step={10} />
-              </div>
-            </div>
-
-            {/* Bottom Actions */}
-            <div className="space-y-2 pt-4 border-t border-white/10">
-              <Button onClick={handleComplete} className="w-full bg-green-600 hover:bg-green-700 gap-2">
-                <Check className="w-4 h-4" />
-                Fertig
-              </Button>
-              <Button onClick={handleCancelAttempt} variant="destructive" className="w-full gap-2">
-                <X className="w-4 h-4" />
-                Abbrechen
-              </Button>
-            </div>
-          </div>
+          {/* Mobile Toolbar Sheet */}
+          {isMobile && (
+            <Sheet open={showToolbar} onOpenChange={setShowToolbar}>
+              <SheetContent
+                side="bottom"
+                className="bg-black/95 backdrop-blur-xl border-t border-white/10 p-4 space-y-4 max-h-[80vh] overflow-y-auto"
+              >
+                <ToolbarContent />
+              </SheetContent>
+            </Sheet>
+          )}
 
           {/* Exit Confirmation Dialog */}
           {showExitConfirmDialog && (
@@ -940,12 +1082,12 @@ export const ImprovedPaintCanvasWithStealth: React.FC<ImprovedPaintCanvasWithSte
 
           {/* Police QTE Overlay */}
           {showPoliceQTE && (
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
-              <div className="text-center space-y-6">
-                <div className="text-6xl font-black text-red-600 animate-pulse">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="text-center space-y-6 w-full max-w-2xl">
+                <div className={`${isMobile ? 'text-4xl' : 'text-6xl'} font-black text-red-600 animate-pulse`}>
                   🚨 POLIZEI! 🚨
                 </div>
-                <div className="text-2xl text-white font-bold">
+                <div className={`${isMobile ? 'text-xl' : 'text-2xl'} text-white font-bold`}>
                   Tippe schnell die Punkte ab!
                 </div>
                 <div className="text-lg text-white">
@@ -953,13 +1095,14 @@ export const ImprovedPaintCanvasWithStealth: React.FC<ImprovedPaintCanvasWithSte
                 </div>
 
                 {/* QTE Targets */}
-                <div className="relative w-[600px] h-[400px] bg-gray-900/50 rounded-lg">
+                <div className={`relative ${isMobile ? 'w-full h-[300px]' : 'w-[600px] h-[400px]'} bg-gray-900/50 rounded-lg mx-auto`}>
                   {qteTargets.map((target, index) => (
                     <button
                       key={index}
                       onClick={() => handleQTETarget(index)}
+                      onTouchStart={(e) => { e.preventDefault(); handleQTETarget(index); }}
                       disabled={!target.active}
-                      className={`absolute w-20 h-20 rounded-full ${
+                      className={`absolute ${isMobile ? 'w-16 h-16 min-w-[60px] min-h-[60px]' : 'w-20 h-20'} rounded-full ${
                         target.active
                           ? 'bg-red-600 animate-ping cursor-pointer'
                           : 'bg-gray-600 opacity-50'

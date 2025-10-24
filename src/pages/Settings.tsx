@@ -20,6 +20,8 @@ import {
   DollarSign,
   Star,
   Crown,
+  Zap,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useHaptics } from '@/lib/haptics';
@@ -101,6 +103,30 @@ const Settings: React.FC = () => {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
+  // Debug/Admin Functions
+  const handleClearPrison = () => {
+    localStorage.removeItem('prisonUntil');
+    success();
+    toast.success('🔓 Aus dem Gefängnis befreit!', {
+      description: 'Du kannst jetzt wieder malen.',
+    });
+  };
+
+  const handleClearWork = () => {
+    localStorage.removeItem('workStartTime');
+    localStorage.removeItem('workEndTime');
+    success();
+    toast.success('⚡ Arbeit beendet!', {
+      description: 'Du kannst jetzt wieder malen.',
+    });
+  };
+
+  const handleResetToolbarPulse = () => {
+    localStorage.removeItem('toolbarOpened');
+    success();
+    toast.success('♻️ Toolbar-Animation zurückgesetzt!');
+  };
+
   return (
     <div className="container max-w-6xl mx-auto p-6">
       {/* Header */}
@@ -119,7 +145,7 @@ const Settings: React.FC = () => {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 h-auto p-1">
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 h-auto p-1">
           <TabsTrigger value="profile" className="gap-2">
             <User className="w-4 h-4" />
             <span className="hidden sm:inline">Profil</span>
@@ -135,6 +161,10 @@ const Settings: React.FC = () => {
           <TabsTrigger value="referral" className="gap-2">
             <Gift className="w-4 h-4" />
             <span className="hidden sm:inline">Einladen</span>
+          </TabsTrigger>
+          <TabsTrigger value="debug" className="gap-2 bg-destructive/10">
+            <Zap className="w-4 h-4 text-destructive" />
+            <span className="hidden sm:inline text-destructive">Debug</span>
           </TabsTrigger>
         </TabsList>
 
@@ -186,12 +216,12 @@ const Settings: React.FC = () => {
               {/* Avatar/Style */}
               <div className="space-y-2">
                 <Label className="text-sm font-bold uppercase">Graffiti Style</Label>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   {['Wildstyle', 'Bubble', 'Throwie', 'Tag', 'Piece'].map((style) => (
                     <Button
                       key={style}
                       variant="outline"
-                      className="h-auto py-3 flex flex-col gap-2"
+                      className="min-h-[60px] h-auto py-3 flex flex-col gap-2"
                     >
                       <span className="text-2xl">🎨</span>
                       <span className="text-xs font-bold">{style}</span>
@@ -257,12 +287,12 @@ const Settings: React.FC = () => {
               {/* Difficulty */}
               <div className="space-y-2">
                 <Label className="text-sm font-bold uppercase">Schwierigkeitsgrad</Label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {['Easy', 'Medium', 'Hard', 'Extreme'].map((diff, idx) => (
                     <Button
                       key={diff}
                       variant={idx === 1 ? 'default' : 'outline'}
-                      className="h-auto py-3"
+                      className="min-h-[48px] h-auto py-3"
                     >
                       {diff}
                     </Button>
@@ -275,12 +305,12 @@ const Settings: React.FC = () => {
               {/* Language */}
               <div className="space-y-2">
                 <Label className="text-sm font-bold uppercase">Sprache</Label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {['🇩🇪 Deutsch', '🇬🇧 English', '🇪🇸 Español', '🇫🇷 Français'].map((lang) => (
                     <Button
                       key={lang}
                       variant={lang.includes('Deutsch') ? 'default' : 'outline'}
-                      className="h-auto py-3"
+                      className="min-h-[48px] h-auto py-3"
                     >
                       {lang}
                     </Button>
@@ -330,16 +360,16 @@ const Settings: React.FC = () => {
               <Separator />
 
               {/* Crew Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="p-4 bg-primary/10 border-primary">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Card className="p-4 min-h-[80px] bg-primary/10 border-primary">
                   <div className="text-sm text-muted-foreground mb-1">Mitglieder</div>
                   <div className="text-3xl font-black text-primary">12</div>
                 </Card>
-                <Card className="p-4 bg-neon-cyan/10 border-neon-cyan">
+                <Card className="p-4 min-h-[80px] bg-neon-cyan/10 border-neon-cyan">
                   <div className="text-sm text-muted-foreground mb-1">Pieces</div>
                   <div className="text-3xl font-black text-neon-cyan">847</div>
                 </Card>
-                <Card className="p-4 bg-neon-orange/10 border-neon-orange">
+                <Card className="p-4 min-h-[80px] bg-neon-orange/10 border-neon-orange">
                   <div className="text-sm text-muted-foreground mb-1">Fame</div>
                   <div className="text-3xl font-black text-neon-orange">12,543</div>
                 </Card>
@@ -424,22 +454,22 @@ const Settings: React.FC = () => {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="p-4 bg-neon-cyan/10 border-neon-cyan">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Card className="p-4 min-h-[100px] bg-neon-cyan/10 border-neon-cyan">
                   <div className="flex items-center gap-2 mb-2">
                     <UserPlus className="w-5 h-5 text-neon-cyan" />
                     <div className="text-sm text-muted-foreground">Eingeladene Freunde</div>
                   </div>
                   <div className="text-3xl font-black text-neon-cyan">{referredFriends}</div>
                 </Card>
-                <Card className="p-4 bg-neon-lime/10 border-neon-lime">
+                <Card className="p-4 min-h-[100px] bg-neon-lime/10 border-neon-lime">
                   <div className="flex items-center gap-2 mb-2">
                     <DollarSign className="w-5 h-5 text-neon-lime" />
                     <div className="text-sm text-muted-foreground">Verdientes Cash</div>
                   </div>
                   <div className="text-3xl font-black text-neon-lime">${totalEarnedCash}</div>
                 </Card>
-                <Card className="p-4 bg-neon-orange/10 border-neon-orange">
+                <Card className="p-4 min-h-[100px] bg-neon-orange/10 border-neon-orange">
                   <div className="flex items-center gap-2 mb-2">
                     <Star className="w-5 h-5 text-neon-orange" />
                     <div className="text-sm text-muted-foreground">Verdiente Fame</div>
@@ -506,6 +536,104 @@ const Settings: React.FC = () => {
                     </Card>
                   ))}
                 </div>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* Debug/Admin Tab */}
+        <TabsContent value="debug" className="space-y-6">
+          <Card className="p-6 border-2 border-destructive/50 bg-destructive/5">
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-black uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <Zap className="w-6 h-6 text-destructive" />
+                  Debug / Admin Tools
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  ⚠️ Diese Tools sind nur für Entwicklung und Testing. Vorsichtig verwenden!
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Clear Prison */}
+              <div className="space-y-3">
+                <Label className="text-base font-bold uppercase">Gefängnis</Label>
+                <Card className="p-4 bg-red-950/20 border-red-500/30">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="font-bold text-lg">Aus Gefängnis befreien</div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Entfernt die Gefängnisstrafe und ermöglicht sofort wieder zu malen.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={handleClearPrison}
+                      variant="destructive"
+                      className="gap-2 min-h-[44px]"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Befreien
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+
+              {/* Clear Work */}
+              <div className="space-y-3">
+                <Label className="text-base font-bold uppercase">Arbeit</Label>
+                <Card className="p-4 bg-orange-950/20 border-orange-500/30">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="font-bold text-lg">Arbeit beenden</div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Beendet die laufende Arbeit sofort (ohne Geld zu verdienen).
+                      </p>
+                    </div>
+                    <Button
+                      onClick={handleClearWork}
+                      variant="destructive"
+                      className="gap-2 min-h-[44px]"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Beenden
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+
+              {/* Reset Toolbar Pulse */}
+              <div className="space-y-3">
+                <Label className="text-base font-bold uppercase">UI Reset</Label>
+                <Card className="p-4 bg-blue-950/20 border-blue-500/30">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="font-bold text-lg">Toolbar-Animation zurücksetzen</div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Setzt die pulsierende Animation des Toolbar-Buttons zurück.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={handleResetToolbarPulse}
+                      variant="outline"
+                      className="gap-2 min-h-[44px]"
+                    >
+                      <Zap className="w-4 h-4" />
+                      Reset
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+
+              <Separator />
+
+              {/* Info */}
+              <div className="bg-yellow-950/20 border border-yellow-500/30 p-4 rounded-lg">
+                <p className="text-sm text-yellow-200">
+                  💡 <strong>Hinweis:</strong> Diese Tools bearbeiten nur den lokalen Browser-Speicher (localStorage).
+                  Bei Backend-Integration müssen die Daten auch auf dem Server aktualisiert werden.
+                </p>
               </div>
             </div>
           </Card>

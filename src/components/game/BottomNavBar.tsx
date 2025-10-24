@@ -28,7 +28,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentView, setCurr
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-urban-surface border-t-2 border-urban-border z-30 md:hidden">
+    <div className="fixed bottom-0 left-0 right-0 bg-urban-surface border-t-2 border-urban-border z-30 md:hidden safe-bottom">
       <div className="flex justify-around items-center h-16">
         {navItems.map((item) => (
           <Button

@@ -204,7 +204,7 @@ export const EnhancedShop: React.FC = () => {
     <div className="h-full flex flex-col bg-urban-dark p-6">
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-3xl font-black uppercase mb-2">Shop</h2>
+        <h2 className="text-2xl md:text-3xl lg:text-4xl font-black uppercase mb-2">Shop</h2>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-neon-lime" />
@@ -236,11 +236,11 @@ export const EnhancedShop: React.FC = () => {
 
         {/* Tools Tab */}
         <TabsContent value="tools" className="mt-4 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
             {TOOLS.map(tool => {
               const owned = ownedTools.includes(tool.id);
               return (
-                <Card key={tool.id} className={`p-4 ${owned ? 'border-neon-lime' : ''}`}>
+                <Card key={tool.id} className={`p-4 lg:p-5 min-h-[220px] ${owned ? 'border-neon-lime' : ''}`}>
                   <div className="space-y-3">
                     <div className="flex items-start justify-between">
                       <div>
@@ -292,11 +292,11 @@ export const EnhancedShop: React.FC = () => {
 
         {/* Colors Tab */}
         <TabsContent value="colors" className="mt-4 space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 lg:gap-5">
             {PAINT_COLORS.map(color => {
               const owned = ownedColors.includes(color.id);
               return (
-                <Card key={color.id} className={`p-4 ${owned ? 'border-neon-lime' : ''}`}>
+                <Card key={color.id} className={`p-4 min-h-[220px] ${owned ? 'border-neon-lime' : ''}`}>
                   <div className="space-y-3">
                     {/* Color Preview */}
                     <div

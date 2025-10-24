@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { SprayCan, Map, Users, Trophy, Palette, Zap, User, LogIn, UserPlus } from "lucide-react";
+import { SprayCan, Map, Users, Trophy, Palette, Zap, User, LogIn, UserPlus, MessageSquare, ExternalLink } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -68,17 +68,17 @@ const Index = () => {
         <div className="relative z-10 max-w-6xl mx-auto text-center">
           {/* Main Title */}
           <div className="mb-8 animate-glow">
-            <h1 className="text-7xl md:text-9xl font-black tracking-tighter mb-4 bg-gradient-neon bg-clip-text text-transparent uppercase">
+            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-black tracking-tighter mb-4 bg-gradient-neon bg-clip-text text-transparent uppercase">
               CanControl
             </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground font-bold uppercase tracking-wide">
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground font-bold uppercase tracking-wide">
               The Ultimate Graffiti Game
             </p>
           </div>
 
           {/* Tagline */}
           <div className="mb-12 space-y-4">
-            <p className="text-lg md:text-xl text-foreground/90 max-w-2xl mx-auto">
+            <p className="text-base md:text-lg lg:text-xl text-foreground/90 max-w-2xl mx-auto">
               Werde zur Legende der Streets. Male, renne, verstecke dich - und hinterlasse deine Spur in der Stadt.
             </p>
           </div>
@@ -149,15 +149,15 @@ const Index = () => {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
             <div className="space-y-1">
-              <div className="text-3xl md:text-4xl font-black text-neon-pink">500+</div>
+              <div className="text-2xl sm:text-3xl md:text-4xl font-black text-neon-pink">500+</div>
               <div className="text-sm text-muted-foreground uppercase tracking-wide">Spots</div>
             </div>
             <div className="space-y-1">
-              <div className="text-3xl md:text-4xl font-black text-neon-cyan">100+</div>
+              <div className="text-2xl sm:text-3xl md:text-4xl font-black text-neon-cyan">100+</div>
               <div className="text-sm text-muted-foreground uppercase tracking-wide">Designs</div>
             </div>
             <div className="space-y-1">
-              <div className="text-3xl md:text-4xl font-black text-neon-lime">∞</div>
+              <div className="text-2xl sm:text-3xl md:text-4xl font-black text-neon-lime">∞</div>
               <div className="text-sm text-muted-foreground uppercase tracking-wide">Style</div>
             </div>
           </div>
@@ -183,11 +183,11 @@ const Index = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
             {features.map((feature, index) => (
               <Card
                 key={index}
-                className="bg-card/50 backdrop-blur border-2 border-border hover:border-primary/50 transition-all duration-300 p-6 group hover:shadow-neon cursor-pointer"
+                className="bg-card/50 backdrop-blur border-2 border-border hover:border-primary/50 transition-all duration-300 p-4 md:p-5 lg:p-6 group hover:shadow-neon cursor-pointer"
               >
                 <div className="space-y-4">
                   <div className={`w-12 h-12 rounded-lg bg-${feature.color}/10 flex items-center justify-center group-hover:scale-110 transition-transform`}>
@@ -231,7 +231,7 @@ const Index = () => {
       {/* CTA Section */}
       <section className="relative py-32 px-4">
         <div className="max-w-4xl mx-auto text-center space-y-8">
-          <h2 className="text-5xl md:text-7xl font-black uppercase tracking-tight">
+          <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black uppercase tracking-tight">
             Ready to be a{" "}
             <span className="bg-gradient-neon bg-clip-text text-transparent">
               Legend
@@ -244,6 +244,46 @@ const Index = () => {
           <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xl px-12 py-7 shadow-neon" onClick={handleStartGame}>
             Get Started Now
           </Button>
+
+          {/* Feedback Request Section */}
+          <div className="mt-16 pt-12 border-t border-border/50">
+            <Card className="bg-card/50 backdrop-blur border-2 border-neon-cyan/30 p-8 max-w-2xl mx-auto">
+              <div className="space-y-6">
+                <div className="flex items-center justify-center gap-3">
+                  <MessageSquare className="w-8 h-8 text-neon-cyan" />
+                  <h3 className="text-2xl md:text-3xl font-black uppercase">
+                    Deine Meinung zählt!
+                  </h3>
+                </div>
+
+                <p className="text-base md:text-lg text-muted-foreground">
+                  Hast du die App ausprobiert? Wir würden gerne dein Feedback hören!
+                  Hilf uns dabei, CanControl noch besser zu machen.
+                </p>
+
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    💡 <strong>Nach dem ersten Benutzen</strong> - Fülle bitte das kurze Feedback-Formular aus
+                  </p>
+
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="w-full border-2 border-neon-cyan text-neon-cyan hover:bg-neon-cyan/20 font-bold text-lg px-6 py-6 flex items-center justify-center gap-3"
+                    onClick={() => window.open('https://forms.gle/cw6FSgkxX9D8qGTu9', '_blank')}
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                    <span>Feedback geben</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <p className="text-xs text-muted-foreground/70 italic">
+                  Dein Feedback hilft uns, die letzten Feinschliffe durch User-Meinungen zu erhalten
+                </p>
+              </div>
+            </Card>
+          </div>
         </div>
       </section>
     </div>

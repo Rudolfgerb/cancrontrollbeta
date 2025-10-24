@@ -28,6 +28,8 @@ import { useGame } from '@/contexts/GameContext';
 import { useAchievements } from '@/contexts/AchievementContext';
 import { AchievementCategory, AchievementRarity } from '@/data/achievements';
 import { cn } from '@/lib/utils';
+import { calculateUserStats } from '@/lib/statsHelper';
+import { galleryService } from '@/lib/gallery';
 
 interface PaintingTool {
   id: string;
@@ -50,6 +52,9 @@ const Profile: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<AchievementCategory | 'all'>('all');
   const [selectedRarity, setSelectedRarity] = useState<AchievementRarity | 'all'>('all');
+
+  // Calculate real stats from gallery
+  const userStats = calculateUserStats();
 
   // Mock player data - würde später vom Backend kommen
   const playerData = {
@@ -187,41 +192,41 @@ const Profile: React.FC = () => {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-4 gap-4 mt-6">
-            <Card className="p-4 bg-neon-orange/10 border-neon-orange">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 lg:gap-5 mt-6">
+            <Card className="p-3 md:p-4 lg:p-5 bg-neon-orange/10 border-neon-orange">
               <div className="flex items-center gap-2 mb-2">
-                <Star className="w-5 h-5 text-neon-orange" />
-                <span className="text-xs text-muted-foreground">Fame</span>
+                <Star className="w-4 h-4 md:w-5 md:h-5 text-neon-orange" />
+                <span className="text-xs lg:text-sm text-muted-foreground">Fame</span>
               </div>
-              <div className="text-2xl font-black text-neon-orange">{gameState.fame.toLocaleString()}</div>
+              <div className="text-xl md:text-2xl lg:text-3xl font-black text-neon-orange">{gameState.fame.toLocaleString()}</div>
             </Card>
-            <Card className="p-4 bg-neon-lime/10 border-neon-lime">
+            <Card className="p-3 md:p-4 lg:p-5 bg-neon-lime/10 border-neon-lime">
               <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="w-5 h-5 text-neon-lime" />
-                <span className="text-xs text-muted-foreground">Money</span>
+                <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-neon-lime" />
+                <span className="text-xs lg:text-sm text-muted-foreground">Money</span>
               </div>
-              <div className="text-2xl font-black text-neon-lime">${gameState.money.toLocaleString()}</div>
+              <div className="text-xl md:text-2xl lg:text-3xl font-black text-neon-lime">${gameState.money.toLocaleString()}</div>
             </Card>
-            <Card className="p-4 bg-neon-cyan/10 border-neon-cyan">
+            <Card className="p-3 md:p-4 lg:p-5 bg-neon-cyan/10 border-neon-cyan">
               <div className="flex items-center gap-2 mb-2">
-                <MapPin className="w-5 h-5 text-neon-cyan" />
-                <span className="text-xs text-muted-foreground">Spots</span>
+                <MapPin className="w-4 h-4 md:w-5 md:h-5 text-neon-cyan" />
+                <span className="text-xs lg:text-sm text-muted-foreground">Spots</span>
               </div>
-              <div className="text-2xl font-black text-neon-cyan">{gameState.stats.spotsPainted}</div>
+              <div className="text-xl md:text-2xl lg:text-3xl font-black text-neon-cyan">{gameState.stats.spotsPainted}</div>
             </Card>
-            <Card className="p-4 bg-primary/10 border-primary">
+            <Card className="p-3 md:p-4 lg:p-5 bg-primary/10 border-primary">
               <div className="flex items-center gap-2 mb-2">
-                <SprayCan className="w-5 h-5 text-primary" />
-                <span className="text-xs text-muted-foreground">Pieces</span>
+                <SprayCan className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                <span className="text-xs lg:text-sm text-muted-foreground">Pieces</span>
               </div>
-              <div className="text-2xl font-black text-primary">{gameState.stats.totalPieces}</div>
+              <div className="text-xl md:text-2xl lg:text-3xl font-black text-primary">{userStats.totalPieces}</div>
             </Card>
           </div>
         </Card>
 
         {/* Tabs Section */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-3 h-auto p-1">
             <TabsTrigger value="stats">Statistiken</TabsTrigger>
             <TabsTrigger value="inventory">Inventory</TabsTrigger>
             <TabsTrigger value="achievements">Achievements</TabsTrigger>
@@ -230,45 +235,53 @@ const Profile: React.FC = () => {
           {/* Stats Tab */}
           <TabsContent value="stats" className="space-y-4">
             <Card className="p-6">
-              <h3 className="text-2xl font-black uppercase mb-4 flex items-center gap-2">
-                <TrendingUp className="w-6 h-6 text-primary" />
+              <h3 className="text-xl md:text-2xl lg:text-3xl font-black uppercase mb-4 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-primary" />
                 Deine Statistiken
               </h3>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center pb-3 border-b border-border">
                     <span className="text-muted-foreground">Total Pieces</span>
-                    <span className="text-xl font-black">{gameState.stats.totalPieces}</span>
+                    <span className="text-xl font-black">{userStats.totalPieces}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-border">
-                    <span className="text-muted-foreground">Spots Bemalt</span>
-                    <span className="text-xl font-black">{gameState.stats.spotsPainted}</span>
+                    <span className="text-muted-foreground">Durchschn. Qualität</span>
+                    <span className="text-xl font-black text-neon-orange">{userStats.averageQuality}%</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-border">
-                    <span className="text-muted-foreground">Best Fame</span>
-                    <span className="text-xl font-black text-neon-orange">{gameState.stats.bestFame}</span>
+                    <span className="text-muted-foreground">Beste Qualität</span>
+                    <span className="text-xl font-black text-neon-lime">{userStats.bestQuality}%</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-border">
-                    <span className="text-muted-foreground">Total Geld verdient</span>
-                    <span className="text-xl font-black text-neon-lime">${(gameState.stats.totalPieces * 150).toLocaleString()}</span>
+                    <span className="text-muted-foreground">Easy Pieces</span>
+                    <span className="text-xl font-black text-green-500">{userStats.piecesByDifficulty.easy}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-3 border-b border-border">
+                    <span className="text-muted-foreground">Medium Pieces</span>
+                    <span className="text-xl font-black text-cyan-500">{userStats.piecesByDifficulty.medium}</span>
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center pb-3 border-b border-border">
-                    <span className="text-muted-foreground">Mal-Sessions</span>
-                    <span className="text-xl font-black">{gameState.stats.totalPieces}</span>
+                    <span className="text-muted-foreground">Hard Pieces</span>
+                    <span className="text-xl font-black text-orange-500">{userStats.piecesByDifficulty.hard}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-border">
-                    <span className="text-muted-foreground">Erwischt</span>
-                    <span className="text-xl font-black text-destructive">12</span>
+                    <span className="text-muted-foreground">Extreme Pieces</span>
+                    <span className="text-xl font-black text-pink-500">{userStats.piecesByDifficulty.extreme}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-border">
-                    <span className="text-muted-foreground">Erfolgsrate</span>
-                    <span className="text-xl font-black text-neon-cyan">78%</span>
+                    <span className="text-muted-foreground">⭐ Bewertungen erhalten</span>
+                    <span className="text-xl font-black text-yellow-400">{userStats.averageRatingReceived.toFixed(1)} ({userStats.totalRatingsReceived})</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-border">
-                    <span className="text-muted-foreground">Spielzeit</span>
-                    <span className="text-xl font-black">24h 32min</span>
+                    <span className="text-muted-foreground">Bewertungen gegeben</span>
+                    <span className="text-xl font-black text-neon-cyan">{userStats.totalRatingsGiven}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-3 border-b border-border">
+                    <span className="text-muted-foreground">Fame</span>
+                    <span className="text-xl font-black text-neon-orange">{gameState.fame}</span>
                   </div>
                 </div>
               </div>
@@ -277,12 +290,12 @@ const Profile: React.FC = () => {
 
           {/* Inventory Tab */}
           <TabsContent value="inventory" className="space-y-4">
-            <Card className="p-6">
-              <h3 className="text-2xl font-black uppercase mb-4 flex items-center gap-2">
-                <Package className="w-6 h-6 text-primary" />
+            <Card className="p-4 md:p-6 lg:p-8">
+              <h3 className="text-xl md:text-2xl lg:text-3xl font-black uppercase mb-4 flex items-center gap-2">
+                <Package className="w-5 h-5 md:w-6 md:h-6 text-primary" />
                 Dein Inventory
               </h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
                 {tools.map((tool) => (
                   <Card
                     key={tool.id}
@@ -344,12 +357,12 @@ const Profile: React.FC = () => {
             </Card>
 
             {/* Colors Section */}
-            <Card className="p-6">
-              <h3 className="text-xl font-black uppercase mb-4 flex items-center gap-2">
-                <Palette className="w-5 h-5 text-primary" />
+            <Card className="p-4 md:p-6 lg:p-8">
+              <h3 className="text-lg md:text-xl lg:text-2xl font-black uppercase mb-4 flex items-center gap-2">
+                <Palette className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                 Farben
               </h3>
-              <div className="grid grid-cols-8 gap-3">
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2 md:gap-3 lg:gap-4">
                 {['#FF006E', '#8338EC', '#3A86FF', '#06FFA5', '#FFBE0B', '#FB5607', '#FF006E', '#06FFA5'].map((color, i) => (
                   <div
                     key={i}
@@ -364,7 +377,7 @@ const Profile: React.FC = () => {
           {/* Achievements Tab */}
           <TabsContent value="achievements" className="space-y-4">
             {/* Achievement Stats Overview */}
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 lg:gap-5">
               <Card className="p-4 bg-primary/10 border-primary">
                 <div className="flex items-center gap-2 mb-2">
                   <Trophy className="w-5 h-5 text-primary" />
@@ -398,8 +411,8 @@ const Profile: React.FC = () => {
             </div>
 
             {/* Filters */}
-            <Card className="p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
+            <Card className="p-4 md:p-5 lg:p-6">
+              <div className="flex flex-col md:flex-row gap-3 md:gap-4 lg:gap-5">
                 {/* Search */}
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />

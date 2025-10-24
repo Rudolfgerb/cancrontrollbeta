@@ -169,22 +169,22 @@ const Crew: React.FC = () => {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-3 gap-4 mt-6">
-                  <Card className="p-4 bg-neon-orange/10 border-neon-orange">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                  <Card className="p-4 min-h-[100px] bg-neon-orange/10 border-neon-orange">
                     <div className="flex items-center gap-2 mb-2">
                       <Star className="w-5 h-5 text-neon-orange" />
                       <span className="text-sm text-muted-foreground">Total Fame</span>
                     </div>
                     <div className="text-3xl font-black text-neon-orange">{playerCrew.totalFame.toLocaleString()}</div>
                   </Card>
-                  <Card className="p-4 bg-neon-cyan/10 border-neon-cyan">
+                  <Card className="p-4 min-h-[100px] bg-neon-cyan/10 border-neon-cyan">
                     <div className="flex items-center gap-2 mb-2">
                       <MapPin className="w-5 h-5 text-neon-cyan" />
                       <span className="text-sm text-muted-foreground">Spots Bemalt</span>
                     </div>
                     <div className="text-3xl font-black text-neon-cyan">{playerCrew.totalSpots}</div>
                   </Card>
-                  <Card className="p-4 bg-primary/10 border-primary">
+                  <Card className="p-4 min-h-[100px] bg-primary/10 border-primary">
                     <div className="flex items-center gap-2 mb-2">
                       <TrendingUp className="w-5 h-5 text-primary" />
                       <span className="text-sm text-muted-foreground">Gegründet</span>
@@ -204,7 +204,7 @@ const Crew: React.FC = () => {
                 </h3>
                 <div className="space-y-3">
                   {playerCrew.members.map((member, index) => (
-                    <Card key={member.id} className="p-4 bg-card/50 backdrop-blur hover:bg-card/70 transition-colors">
+                    <Card key={member.id} className="p-4 min-h-[80px] bg-card/50 backdrop-blur hover:bg-card/70 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className="text-2xl font-black text-muted-foreground">#{index + 1}</div>
@@ -248,7 +248,7 @@ const Crew: React.FC = () => {
               </h3>
               <div className="space-y-3">
                 {topCrews.map((crew) => (
-                  <Card key={crew.id} className="p-4 bg-card/50 backdrop-blur hover:bg-card/70 transition-colors cursor-pointer">
+                  <Card key={crew.id} className="p-4 min-h-[80px] bg-card/50 backdrop-blur hover:bg-card/70 transition-colors cursor-pointer">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div className={`text-3xl font-black ${
@@ -295,14 +295,14 @@ const Crew: React.FC = () => {
 
       {/* Create Crew Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-full sm:max-w-md mx-4 sm:mx-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black uppercase">Crew Gründen</DialogTitle>
+            <DialogTitle className="text-xl sm:text-2xl font-black uppercase">Crew Gründen</DialogTitle>
             <DialogDescription>
               Erstelle deine eigene Crew und werde zur Legende der Streets
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 p-4 sm:p-6">
             <div>
               <Label htmlFor="crewName">Crew Name</Label>
               <Input
@@ -311,6 +311,7 @@ const Crew: React.FC = () => {
                 value={crewName}
                 onChange={(e) => setCrewName(e.target.value)}
                 maxLength={30}
+                className="w-full"
               />
             </div>
             <div>
@@ -321,6 +322,7 @@ const Crew: React.FC = () => {
                 value={crewTag}
                 onChange={(e) => setCrewTag(e.target.value.toUpperCase())}
                 maxLength={4}
+                className="w-full"
               />
             </div>
             <div>
@@ -331,14 +333,15 @@ const Crew: React.FC = () => {
                 value={crewDescription}
                 onChange={(e) => setCrewDescription(e.target.value)}
                 maxLength={100}
+                className="w-full"
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-3">
+            <Button variant="outline" className="w-full sm:w-auto min-h-[48px]" onClick={() => setShowCreateDialog(false)}>
               Abbrechen
             </Button>
-            <Button onClick={handleCreateCrew}>
+            <Button className="w-full sm:w-auto min-h-[48px]" onClick={handleCreateCrew}>
               Crew gründen
             </Button>
           </DialogFooter>
@@ -347,14 +350,14 @@ const Crew: React.FC = () => {
 
       {/* Join Crew Dialog */}
       <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-full sm:max-w-md mx-4 sm:mx-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black uppercase">Crew Beitreten</DialogTitle>
+            <DialogTitle className="text-xl sm:text-2xl font-black uppercase">Crew Beitreten</DialogTitle>
             <DialogDescription>
               Suche nach einer Crew und tritt ihr bei
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 p-4 sm:p-6">
             <div>
               <Label htmlFor="search">Crew suchen</Label>
               <Input
@@ -362,6 +365,7 @@ const Crew: React.FC = () => {
                 placeholder="Nach Name oder Tag suchen..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full"
               />
             </div>
             <div className="max-h-64 overflow-y-auto space-y-2">
@@ -369,8 +373,8 @@ const Crew: React.FC = () => {
                 crew.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 crew.tag.toLowerCase().includes(searchQuery.toLowerCase())
               ).map((crew) => (
-                <Card key={crew.id} className="p-3 cursor-pointer hover:bg-accent" onClick={() => handleJoinCrew(crew.id)}>
-                  <div className="flex items-center justify-between">
+                <Card key={crew.id} className="p-3 min-h-[60px] cursor-pointer hover:bg-accent" onClick={() => handleJoinCrew(crew.id)}>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
                         <span className="font-black text-primary">{crew.tag}</span>
@@ -382,7 +386,7 @@ const Crew: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                    <Button size="sm">Beitreten</Button>
+                    <Button size="sm" className="w-full sm:w-auto min-h-[44px]">Beitreten</Button>
                   </div>
                 </Card>
               ))}

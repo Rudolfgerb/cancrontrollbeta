@@ -9,6 +9,7 @@ import { EnhancedGoogleMap } from '@/components/game/EnhancedGoogleMap';
 import { Shop } from '@/components/game/Shop';
 import { EnhancedShop } from '@/components/game/EnhancedShop';
 import { EnhancedHideout } from '@/components/game/EnhancedHideout';
+import { Gallery } from '@/components/game/Gallery';
 import Crew from './Crew';
 import Profile from './Profile';
 import Settings from './Settings';
@@ -20,6 +21,9 @@ import { BottomNavBar } from '@/components/game/BottomNavBar';
 import { Map, ShoppingBag, Home, Star, DollarSign, AlertTriangle, Trophy, SprayCan, Users, User, Settings as SettingsIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { galleryService } from '@/lib/gallery';
+import { getCurrentUser } from '@/lib/userHelper';
+import { calculateUserStats } from '@/lib/statsHelper';
 
 interface CapturedSpot {
   id: string;
@@ -33,7 +37,7 @@ interface CapturedSpot {
   userId?: string;
 }
 
-type GameView = 'hideout' | 'map' | 'shop' | 'painting' | 'crew' | 'profile' | 'settings';
+type GameView = 'hideout' | 'map' | 'shop' | 'painting' | 'crew' | 'profile' | 'settings' | 'gallery';
 
 const Game: React.FC = () => {
   const navigate = useNavigate();
@@ -49,6 +53,9 @@ const Game: React.FC = () => {
   const { gameState, selectSpot, paintSpot, resetWanted, getArrested } = useGame();
   const { trackAction } = useAchievements();
   const { playClick, playSuccess, playBusted } = useSoundEffects();
+
+  // Calculate real user stats from gallery
+  const userStats = calculateUserStats();
 
   const handleSpotCapture = (spot: CapturedSpot) => {
     playSuccess();
@@ -180,7 +187,7 @@ const Game: React.FC = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Top Bar */}
-      <div className="bg-urban-surface border-b-2 border-urban-border px-4 py-3 sticky top-0 z-20">
+      <div className="bg-urban-surface border-b-2 border-urban-border px-4 py-3 sticky top-0 z-20 safe-top">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <SprayCan className="w-6 h-6 text-primary" />
@@ -211,7 +218,7 @@ const Game: React.FC = () => {
       <div className="flex-1 flex flex-col md:flex-row max-w-7xl mx-auto w-full">
         {/* Sidebar Navigation */}
         {!isMobile && (
-          <div className="md:w-64 bg-urban-surface border-r-2 border-urban-border p-4 space-y-2">
+          <div className="md:w-64 lg:w-72 xl:w-80 bg-urban-surface border-r-2 border-urban-border p-4 lg:p-5 space-y-2">
             <Button
               variant={currentView === 'hideout' ? 'default' : 'outline'}
               className="w-full justify-start gap-3"
@@ -280,20 +287,28 @@ const Game: React.FC = () => {
             </Button>
 
             {/* Quick Stats */}
-            <Card className="p-4 mt-6">
-              <div className="text-xs text-muted-foreground uppercase mb-2">Quick Stats</div>
+            <Card className="p-4 lg:p-5 mt-6">
+              <div className="text-xs lg:text-sm text-muted-foreground uppercase mb-2">Quick Stats</div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Pieces:</span>
-                  <span className="font-bold">{gameState.stats.totalPieces}</span>
+                  <span className="font-bold">{userStats.totalPieces}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Spots:</span>
-                  <span className="font-bold">{gameState.stats.spotsPainted}/{gameState.spots.length}</span>
+                  <span className="text-muted-foreground">Durchschn. Qualität:</span>
+                  <span className="font-bold text-neon-cyan">{userStats.averageQuality}%</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Best Fame:</span>
-                  <span className="font-bold text-neon-orange">{gameState.stats.bestFame}</span>
+                  <span className="text-muted-foreground">Beste Qualität:</span>
+                  <span className="font-bold text-neon-lime">{userStats.bestQuality}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">⭐ Rating:</span>
+                  <span className="font-bold text-yellow-400">{userStats.averageRatingReceived.toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Fame:</span>
+                  <span className="font-bold text-neon-orange">{gameState.fame}</span>
                 </div>
               </div>
             </Card>
@@ -311,6 +326,7 @@ const Game: React.FC = () => {
             />
           )}
           {currentView === 'shop' && <EnhancedShop />}
+          {currentView === 'gallery' && <Gallery />}
           {currentView === 'crew' && <Crew />}
           {currentView === 'profile' && <Profile />}
           {currentView === 'settings' && <Settings />}
@@ -319,7 +335,22 @@ const Game: React.FC = () => {
               backgroundImage={selectedSpot?.imageData || selectedCapturedSpot?.imageData}
               spotId={selectedSpot?.id || selectedCapturedSpot?.id || ''}
               difficulty={selectedSpot?.difficulty || selectedCapturedSpot?.difficulty || 'medium'}
-              onComplete={(quality, imageData) => {
+              onComplete={(quality, imageData, saveToGallery) => {
+                // Save to gallery if requested
+                if (saveToGallery) {
+                  const currentUser = getCurrentUser();
+                  galleryService.savePiece({
+                    spotId: selectedSpot?.id || selectedCapturedSpot?.id || '',
+                    spotName: selectedSpot?.name || selectedCapturedSpot?.name || 'Unknown Spot',
+                    imageData,
+                    quality,
+                    difficulty: selectedSpot?.difficulty || selectedCapturedSpot?.difficulty || 'medium',
+                    userId: currentUser.id,
+                    username: currentUser.username,
+                    crew: currentUser.crew,
+                  });
+                  toast.success('🎨 Piece in Galerie gespeichert!');
+                }
                 handlePaintComplete(quality);
               }}
               onCancel={() => {
@@ -343,20 +374,20 @@ const Game: React.FC = () => {
 
       {/* Spot Selection Dialog */}
       <Dialog open={showSpotDialog} onOpenChange={setShowSpotDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-full sm:max-w-md mx-4 sm:mx-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black uppercase">{selectedSpot?.name}</DialogTitle>
+            <DialogTitle className="text-xl sm:text-2xl font-black uppercase">{selectedSpot?.name}</DialogTitle>
             <DialogDescription>
               Bist du bereit für diesen Spot?
             </DialogDescription>
           </DialogHeader>
           {selectedSpot && (
-            <div className="space-y-4">
+            <div className="space-y-4 p-4 sm:p-6">
               <div className={`px-3 py-2 rounded-lg border-2 inline-block ${getDifficultyBadge(selectedSpot.difficulty)}`}>
                 <span className="font-bold uppercase text-sm">{selectedSpot.difficulty}</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Card className="p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Star className="w-5 h-5 text-neon-orange" />
@@ -380,11 +411,11 @@ const Game: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex gap-3">
-                <Button variant="outline" className="flex-1" onClick={() => setShowSpotDialog(false)}>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button variant="outline" className="w-full sm:w-auto sm:flex-1 min-h-[48px]" onClick={() => setShowSpotDialog(false)}>
                   Abbrechen
                 </Button>
-                <Button className="flex-1 bg-primary hover:bg-primary/90" onClick={handleStartPainting}>
+                <Button className="w-full sm:w-auto sm:flex-1 min-h-[48px] bg-primary hover:bg-primary/90" onClick={handleStartPainting}>
                   Los geht's!
                 </Button>
               </div>
@@ -395,25 +426,25 @@ const Game: React.FC = () => {
 
       {/* Result Dialog */}
       <Dialog open={showResultDialog} onOpenChange={setShowResultDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-full sm:max-w-md mx-4 sm:mx-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black uppercase flex items-center gap-2">
+            <DialogTitle className="text-xl sm:text-2xl font-black uppercase flex items-center gap-2">
               <Trophy className="w-6 h-6 text-neon-orange" />
               Piece Complete!
             </DialogTitle>
           </DialogHeader>
           {paintResult && (
-            <div className="space-y-4">
+            <div className="space-y-4 p-4 sm:p-6">
               <div className="text-center">
-                <div className={`text-4xl font-black mb-2 ${getQualityText(paintResult.quality).color}`}>
+                <div className={`text-3xl sm:text-4xl font-black mb-2 ${getQualityText(paintResult.quality).color}`}>
                   {getQualityText(paintResult.quality).text}
                 </div>
-                <div className="text-lg text-muted-foreground">
+                <div className="text-base sm:text-lg text-muted-foreground">
                   Quality: {(paintResult.quality * 100).toFixed(0)}%
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Card className="p-4 bg-neon-orange/10 border-neon-orange">
                   <div className="flex items-center gap-2 mb-2">
                     <Star className="w-5 h-5 text-neon-orange" />
@@ -430,7 +461,7 @@ const Game: React.FC = () => {
                 </Card>
               </div>
 
-              <Button className="w-full" onClick={() => setShowResultDialog(false)}>
+              <Button className="w-full min-h-[48px]" onClick={() => setShowResultDialog(false)}>
                 Weiter malen!
               </Button>
             </div>
