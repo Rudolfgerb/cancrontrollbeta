@@ -1,2 +1,0 @@
-// Location badges (35), Prestige badges (25), Speed badges (20), Special badges (35)
-// Will be combined with main achievements file
