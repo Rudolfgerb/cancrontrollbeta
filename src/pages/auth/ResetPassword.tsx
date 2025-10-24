@@ -1,0 +1,190 @@
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { SprayCan, Lock, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+const ResetPassword = () => {
+  const navigate = useNavigate();
+  const { updatePassword } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    password: '',
+    confirmPassword: '',
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    // Validation
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwörter stimmen nicht überein');
+      toast.error('Passwörter stimmen nicht überein');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Passwort muss mindestens 6 Zeichen lang sein');
+      toast.error('Passwort zu kurz');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error } = await updatePassword(formData.password);
+
+      if (error) {
+        setError(error.message);
+        toast.error(error.message);
+      } else {
+        setSuccess(true);
+        setTimeout(() => {
+          navigate('/auth/login');
+        }, 2000);
+      }
+    } catch (err: any) {
+      setError('Ein unerwarteter Fehler ist aufgetreten');
+      toast.error('Fehler beim Zurücksetzen des Passworts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
+        <div className="fixed inset-0 opacity-5">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }} />
+        </div>
+
+        <div className="relative z-10 w-full max-w-md">
+          <Card className="backdrop-blur-sm bg-card/50 border-2">
+            <CardHeader className="text-center">
+              <div className="mx-auto w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle2 className="w-8 h-8 text-green-500" />
+              </div>
+              <CardTitle>Passwort erfolgreich zurückgesetzt!</CardTitle>
+              <CardDescription>
+                Du wirst automatisch zum Login weitergeleitet...
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
+      {/* Background Pattern */}
+      <div className="fixed inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        }} />
+      </div>
+
+      <div className="relative z-10 w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-2xl mb-4">
+            <SprayCan className="w-8 h-8 text-primary" />
+          </div>
+          <h1 className="text-4xl font-black bg-gradient-neon bg-clip-text text-transparent uppercase">
+            CanControl
+          </h1>
+          <p className="text-muted-foreground mt-2">Neues Passwort setzen</p>
+        </div>
+
+        <Card className="backdrop-blur-sm bg-card/50 border-2">
+          <CardHeader>
+            <CardTitle>Passwort zurücksetzen</CardTitle>
+            <CardDescription>
+              Gib dein neues Passwort ein
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Neues Passwort</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    className="pl-10"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                    disabled={loading}
+                    minLength={6}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Passwort bestätigen</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    className="pl-10"
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    required
+                    disabled={loading}
+                    minLength={6}
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Passwort aktualisieren...
+                  </>
+                ) : (
+                  'Passwort aktualisieren'
+                )}
+              </Button>
+            </form>
+          </CardContent>
+          <CardFooter>
+            <div className="text-sm text-center text-muted-foreground w-full">
+              <Link to="/auth/login" className="text-primary hover:underline font-semibold">
+                Zurück zum Login
+              </Link>
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default ResetPassword;
